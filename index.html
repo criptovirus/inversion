@@ -21,20 +21,20 @@
   <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
   <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
   
-  <!-- Babel Standalone -->
+  <!-- Babel Standalone con compatibilidad para GitHub Pages -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Exportación PDF y Excel -->
+  <!-- Exportación PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 overflow-x-hidden">
   <div id="root"></div>
 
-  <script type="text/babel">
+  <script type="text/babel" data-type="module">
     const { useState, useEffect, useMemo, useRef } = React;
     const { 
       PieChart, Pie, Cell, Tooltip: RechartsTooltip, ResponsiveContainer, 
@@ -48,14 +48,14 @@
       return <i data-lucide={name} className={className}></i>;
     };
 
-    // Componente para renders de Logos Automáticos por Ticker
     const AssetLogo = ({ ticker, type }) => {
       const [imgError, setImgError] = useState(false);
       const cleanTicker = ticker.toUpperCase().trim();
 
       const getLogoUrl = (symbol, assetType) => {
-        if (assetType === 'Cripto' || ['BTC', 'ETH', 'SOL', 'UNI', 'ADA', 'LINK'].includes(symbol)) {
-          return `https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`;
+        if (assetType === 'Cripto' || ['BTC', 'ETH', 'SOL', 'UNI', 'UNISWAP', 'ADA', 'LINK', 'CHAINLINK', 'SUSHI', 'NEAR', 'RAY'].includes(symbol)) {
+          const cryptoLookup = symbol === 'UNISWAP' ? 'uni' : symbol === 'CHAINLINK' ? 'link' : symbol.toLowerCase();
+          return `https://assets.coincap.io/assets/icons/${cryptoLookup}@2x.png`;
         }
         return `https://assets.parqet.com/logos/symbol/${symbol}?format=png`;
       };
@@ -78,58 +78,198 @@
       );
     };
 
+    // DATOS DE RESPALDO INTEGRADOS DE FÁBRICA
     const INITIAL_ASSETS = [
-      { 
-        id: '1', ticker: 'AAPL', name: 'Apple Inc.', type: 'Acciones', shares: 15, avgPrice: 175.50, currentPrice: 220.30, targetPrice: 250,
+      {
+        id: "1789855823132",
+        ticker: "USD",
+        name: "Ahorro",
+        type: "Efectivo",
+        shares: 6992.92,
+        avgPrice: 1,
+        currentPrice: 1,
+        targetPrice: null,
+        date: "2026-09-19",
         transactions: [
-          { id: 't1_1', shares: 10, price: 170.00, date: '2026-01-15' },
-          { id: 't1_2', shares: 5, price: 186.50, date: '2026-04-10' }
+          { id: "tx_1789855823132_q1d", shares: 6232.41, price: 1, date: "2026-09-19" },
+          { id: "tx_1789855855357_jz6", shares: 176.51, price: 1, date: "2026-09-19" },
+          { id: "tx_1789856483457_js4", shares: 584, price: 1, date: "2026-09-19" }
         ]
       },
-      { 
-        id: '2', ticker: 'VGT', name: 'Vanguard Tech ETF', type: 'Acciones', shares: 5, avgPrice: 410.00, currentPrice: 520.10, targetPrice: null,
+      {
+        id: "2",
+        ticker: "VGT",
+        name: "Vanguard Tech ETF",
+        type: "Acciones",
+        shares: 1.0389,
+        avgPrice: 120.99,
+        currentPrice: 121.48,
+        targetPrice: null,
         transactions: [
-          { id: 't2_1', shares: 5, price: 410.00, date: '2026-02-01' }
+          { id: "tx_imp_1789855084148_tuh", shares: 1.03886, price: 120.99, date: "2026-09-19" }
         ]
       },
-      { 
-        id: '3', ticker: 'BTC', name: 'Bitcoin', type: 'Cripto', shares: 0.15, avgPrice: 42000.00, currentPrice: 63500.00, targetPrice: 70000,
+      {
+        id: "3",
+        ticker: "BTC",
+        name: "Bitcoin",
+        type: "Cripto",
+        shares: 0.0024,
+        avgPrice: 76111.1,
+        currentPrice: 81016,
+        targetPrice: 70000,
         transactions: [
-          { id: 't3_1', shares: 0.10, price: 40000.00, date: '2026-01-05' },
-          { id: 't3_2', shares: 0.05, price: 46000.00, date: '2026-03-20' }
+          { id: "tx_imp_1789786970435_c90", shares: 0.002387, price: 76111.1, date: "2026-09-19" }
         ]
       },
-      { 
-        id: '4', ticker: 'UNI', name: 'Uniswap', type: 'Cripto', shares: 78.72, avgPrice: 3.10, currentPrice: 7.18, targetPrice: null,
+      {
+        id: "imp_1789855084147_s8s",
+        ticker: "SUSHI",
+        name: "SUSHI",
+        type: "Cripto",
+        shares: 266.02,
+        avgPrice: 0.79,
+        currentPrice: 0.232499,
         transactions: [
-          { id: 't4_1', shares: 78.72, price: 3.10, date: '2026-05-12' }
+          { id: "tx_imp_1789855084147_rt5", shares: 266.02, price: 0.7909, date: "2026-09-19" }
         ]
       },
-      { 
-        id: '5', ticker: 'USD', name: 'Fondo de Emergencia', type: 'Efectivo', shares: 5000, avgPrice: 1.00, currentPrice: 1.00, targetPrice: null,
+      {
+        id: "imp_1789855084148_s5i",
+        ticker: "NEAR",
+        name: "NEAR",
+        type: "Cripto",
+        shares: 62.92,
+        avgPrice: 3.53,
+        currentPrice: 3.56,
         transactions: [
-          { id: 't5_1', shares: 5000, price: 1.00, date: '2026-01-01' }
+          { id: "tx_imp_1789786970434_oce", shares: 62.92, price: 3.53, date: "2026-09-19" }
         ]
       },
+      {
+        id: "imp_1789855084148_wy6",
+        ticker: "RAY",
+        name: "RAY",
+        type: "Cripto",
+        shares: 288.76,
+        avgPrice: 1.96,
+        currentPrice: 1.68,
+        transactions: [
+          { id: "tx_imp_1789786970435_wkm", shares: 288.76, price: 1.959, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_hs8",
+        ticker: "CHAINLINK",
+        name: "LINK",
+        type: "Cripto",
+        shares: 23.91,
+        avgPrice: 8.36,
+        currentPrice: 12.32,
+        transactions: [
+          { id: "tx_imp_1789786970435_uya", shares: 23.91, price: 8.36, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_q33",
+        ticker: "ETH",
+        name: "ETH",
+        type: "Cripto",
+        shares: 0.1806,
+        avgPrice: 1372.66,
+        currentPrice: 2619.76,
+        transactions: [
+          { id: "tx_imp_1789786970435_v4d", shares: 0.1806, price: 1372.66, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_t9o",
+        ticker: "UNISWAP",
+        name: "UNI",
+        type: "Cripto",
+        shares: 78.72,
+        avgPrice: 3.1,
+        currentPrice: 8.49,
+        transactions: [
+          { id: "tx_imp_1789855214743_hpx", shares: 78.72, price: 3.1, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_zay",
+        ticker: "HIVE",
+        name: "HIVE",
+        type: "Acciones",
+        shares: 3,
+        avgPrice: 3.17,
+        currentPrice: 3.11,
+        transactions: [
+          { id: "tx_imp_1789786970436_20w", shares: 3, price: 3.17, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_vqo",
+        ticker: "TE",
+        name: "TE",
+        type: "Acciones",
+        shares: 2,
+        avgPrice: 5.11,
+        currentPrice: 4.3,
+        transactions: [
+          { id: "tx_imp_1789786970436_ac6", shares: 2, price: 5.11, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_ryr",
+        ticker: "DRAM",
+        name: "DRAM",
+        type: "Acciones",
+        shares: 1.9578,
+        avgPrice: 61.22,
+        currentPrice: 57.78,
+        transactions: [
+          { id: "tx_imp_1789786970436_neg", shares: 1.95776, price: 61.22, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_n5w",
+        ticker: "JPM",
+        name: "JPM",
+        type: "Acciones",
+        shares: 0.3366,
+        avgPrice: 356.05,
+        currentPrice: 349.31,
+        transactions: [
+          { id: "tx_imp_1789786970437_mwt", shares: 0.3366, price: 356.05, date: "2026-09-19" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_ywd",
+        ticker: "GOOG",
+        name: "GOOG",
+        type: "Acciones",
+        shares: 0.3594,
+        avgPrice: 333.5,
+        currentPrice: 343.68,
+        transactions: [
+          { id: "tx_imp_1789786970437_wyq", shares: 0.3594, price: 333.5, date: "2026-09-19" }
+        ]
+      }
     ];
 
     const INITIAL_DIVIDENDS = [
-      { id: 'd1', ticker: 'AAPL', amount: 50.00, date: '2026-08-15' },
-      { id: 'd2', ticker: 'VGT', amount: 50.00, date: '2026-09-01' }
+      { id: "d1", ticker: "AAPL", amount: 50, date: "2026-08-15" },
+      { id: "d2", ticker: "VGT", amount: 50, date: "2026-09-01" }
     ];
 
-    const INITIAL_PRICE_ALERTS = [
-      { id: 'pa1', ticker: 'AAPL', targetPrice: 250, currentPrice: 220.30 },
-      { id: 'pa2', ticker: 'BTC', targetPrice: 70000, currentPrice: 63500.00 },
-      { id: 'pa3', ticker: 'NVDA', targetPrice: 140, currentPrice: 120.50 }
-    ];
+    const INITIAL_PRICE_ALERTS = [];
 
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
     const ASSET_TYPES = ['Acciones', 'Cripto', 'Efectivo', 'Bienes Raíces', 'Otros'];
 
     const CRYPTO_MAP = {
       'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'ADA': 'cardano',
-      'UNI': 'uniswap', 'LINK': 'chainlink', 'NEAR': 'near', 'SUSHI': 'sushiswap'
+      'UNI': 'uniswap', 'UNISWAP': 'uniswap', 'LINK': 'chainlink', 'CHAINLINK': 'chainlink', 
+      'NEAR': 'near', 'SUSHI': 'sushiswap', 'RAY': 'raydium'
     };
 
     const HighContrastPieTooltip = ({ active, payload, totalValue, isPrivate }) => {
@@ -174,6 +314,35 @@
       return null;
     }
 
+    const recalculateAssetTotals = (asset) => {
+      const rawTxs = asset.transactions || [];
+      let txs = rawTxs.map(t => ({
+        ...t,
+        shares: parseFloat(t.shares) || 0,
+        price: parseFloat(t.price) || 0
+      }));
+
+      if (txs.length === 0 && (asset.shares || asset.avgPrice)) {
+        txs = [{
+          id: 'tx_auto_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+          shares: parseFloat(asset.shares) || 0,
+          price: parseFloat(asset.avgPrice) || parseFloat(asset.currentPrice) || 1,
+          date: asset.date || new Date().toISOString().slice(0, 10)
+        }];
+      }
+
+      const totalShares = txs.reduce((sum, t) => sum + (parseFloat(t.shares) || 0), 0);
+      const totalCost = txs.reduce((sum, t) => sum + ((parseFloat(t.shares) || 0) * (parseFloat(t.price) || 0)), 0);
+      const avgPrice = totalShares > 0 ? totalCost / totalShares : 0;
+
+      return {
+        ...asset,
+        shares: Math.round(totalShares * 100000) / 100000,
+        avgPrice: Math.round(avgPrice * 100) / 100,
+        transactions: txs
+      };
+    };
+
     function AssetModal({ isOpen, onClose, onSaveAsset, initialData = null }) {
       const [formData, setFormData] = useState({
         ticker: '', name: '', type: 'Acciones', shares: '', avgPrice: '', currentPrice: '', date: ''
@@ -183,7 +352,7 @@
         if (initialData) {
           setFormData({
             ticker: initialData.ticker, name: initialData.name, type: initialData.type,
-            shares: initialData.shares, avgPrice: initialData.avgPrice, currentPrice: initialData.currentPrice,
+            shares: '', avgPrice: '', currentPrice: initialData.currentPrice || '',
             date: new Date().toISOString().slice(0, 10)
           });
         } else {
@@ -212,7 +381,6 @@
           shares: sharesNum,
           avgPrice: avgPriceNum,
           currentPrice: currentPriceNum,
-          targetPrice: initialData ? initialData.targetPrice : null,
           date: formData.date || new Date().toISOString().slice(0, 10)
         });
         onClose();
@@ -223,8 +391,8 @@
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-5 sm:p-6 shadow-2xl text-slate-800 dark:text-slate-100">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-2">
-                <Icon name={initialData ? "edit-2" : "plus-circle"} className="w-5 h-5 text-blue-500" />
-                <h3 className="text-lg sm:text-xl font-bold">{initialData ? 'Editar Activo' : 'Agregar Nuevo Activo'}</h3>
+                <Icon name="plus-circle" className="w-5 h-5 text-blue-500" />
+                <h3 className="text-lg sm:text-xl font-bold">{initialData ? `Añadir Compra a ${initialData.ticker}` : 'Agregar Nuevo Activo'}</h3>
               </div>
               <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
                 <Icon name="x" className="w-5 h-5" />
@@ -239,7 +407,8 @@
                   placeholder="Ej. AAPL, VGT, BTC"
                   value={formData.ticker}
                   onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  disabled={!!initialData}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
                   required
                 />
               </div>
@@ -251,7 +420,8 @@
                   placeholder="Ej. Apple Inc."
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  disabled={!!initialData}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
                 />
               </div>
 
@@ -260,7 +430,8 @@
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  disabled={!!initialData}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
                 >
                   {ASSET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -268,7 +439,7 @@
 
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Cantidad *</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Cantidad Comprada *</label>
                   <input
                     type="number"
                     step="any"
@@ -295,7 +466,7 @@
 
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Precio Actual ($) *</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Precio Actual Mercado ($)</label>
                   <input
                     type="number"
                     step="any"
@@ -303,7 +474,6 @@
                     value={formData.currentPrice}
                     onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
                     className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                    required
                   />
                 </div>
                 <div>
@@ -322,7 +492,7 @@
                   Cancelar
                 </button>
                 <button type="submit" className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white">
-                  {initialData ? 'Guardar Cambios' : 'Guardar Activo'}
+                  Registrar Compra
                 </button>
               </div>
             </form>
@@ -334,47 +504,25 @@
     function InvestmentDashboard() {
       const fileInputRef = useRef(null);
 
-      const [darkMode, setDarkMode] = useState(() => {
-        return localStorage.getItem('theme_mode') === 'dark' || true;
-      });
-
+      const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme_mode') === 'dark' || true);
       const [isPrivateMode, setIsPrivateMode] = useState(false);
-
-      const [concentrationThreshold, setConcentrationThreshold] = useState(() => {
-        return parseFloat(localStorage.getItem('concentration_threshold')) || 30;
-      });
-
-      const [headerTitle, setHeaderTitle] = useState(() => {
-        return localStorage.getItem('dashboard_title') || 'Dashboard de Patrimonio';
-      });
-      const [headerSubtitle, setHeaderSubtitle] = useState(() => {
-        return localStorage.getItem('dashboard_subtitle') || 'Seguimiento financiero en tiempo real.';
-      });
+      const [concentrationThreshold, setConcentrationThreshold] = useState(() => parseFloat(localStorage.getItem('concentration_threshold')) || 50);
+      const [headerTitle, setHeaderTitle] = useState(() => localStorage.getItem('dashboard_title') || 'Crisxjfufidiiw');
+      const [headerSubtitle, setHeaderSubtitle] = useState(() => localStorage.getItem('dashboard_subtitle') || 'Seguimiento financiero en tiempo real.');
       const [isEditingTitle, setIsEditingTitle] = useState(false);
       const [isEditingSubtitle, setIsEditingSubtitle] = useState(false);
 
       const [assets, setAssets] = useState(() => {
         try {
-          const savedAssets = localStorage.getItem('portfolio_assets_v28');
-          if (!savedAssets) return INITIAL_ASSETS;
+          const savedAssets = localStorage.getItem('portfolio_assets_v31');
+          if (!savedAssets) return INITIAL_ASSETS.map(recalculateAssetTotals);
           
           const parsed = JSON.parse(savedAssets);
-          if (!Array.isArray(parsed) || parsed.length === 0) return INITIAL_ASSETS;
+          if (!Array.isArray(parsed) || parsed.length === 0) return INITIAL_ASSETS.map(recalculateAssetTotals);
 
-          return parsed.map((item) => {
-            if (!item.transactions || !Array.isArray(item.transactions) || item.transactions.length === 0) {
-              const defaultTx = {
-                id: 'tx_migrated_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-                shares: item.shares || 1,
-                price: item.avgPrice || 1,
-                date: new Date().toISOString().slice(0, 10)
-              };
-              return { ...item, transactions: [defaultTx] };
-            }
-            return item;
-          });
+          return parsed.map(recalculateAssetTotals);
         } catch {
-          return INITIAL_ASSETS;
+          return INITIAL_ASSETS.map(recalculateAssetTotals);
         }
       });
 
@@ -411,7 +559,6 @@
       const [isRiskAlertDrawerOpen, setIsRiskAlertDrawerOpen] = useState(false);
 
       const [selectedCategoryTotal, setSelectedCategoryTotal] = useState('Todos');
-
       const [searchTerm, setSearchTerm] = useState('');
       const [filterType, setFilterType] = useState('Todos');
       const [filterProfit, setFilterProfit] = useState('Todos');
@@ -430,7 +577,7 @@
       }, [darkMode]);
 
       useEffect(() => {
-        localStorage.setItem('portfolio_assets_v28', JSON.stringify(assets));
+        localStorage.setItem('portfolio_assets_v31', JSON.stringify(assets));
       }, [assets]);
 
       useEffect(() => {
@@ -455,7 +602,7 @@
 
       const formatCurrency = (val) => {
         if (isPrivateMode) return '****';
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
       };
 
       const toggleExpandAsset = (assetId) => {
@@ -464,34 +611,15 @@
         );
       };
 
-      // Función para recalcular métricas consolidadas
-      const recalculateAssetTotals = (asset) => {
-        const txs = asset.transactions || [];
-        if (txs.length === 0) {
-          return { ...asset, shares: 0, avgPrice: 0 };
-        }
-        const totalShares = txs.reduce((sum, t) => sum + parseFloat(t.shares || 0), 0);
-        const totalCost = txs.reduce((sum, t) => sum + (parseFloat(t.shares || 0) * parseFloat(t.price || 0)), 0);
-        const avgPrice = totalShares > 0 ? totalCost / totalShares : 0;
-
-        return {
-          ...asset,
-          shares: Math.round(totalShares * 10000) / 10000,
-          avgPrice: Math.round(avgPrice * 100) / 100
-        };
-      };
-
-      // Manejar el guardado directo de activos
       const handleSaveAsset = (newData) => {
         setAssets((prevAssets) => {
-          const existingIndex = prevAssets.findIndex(
-            (a) => a.ticker.toUpperCase() === newData.ticker.toUpperCase() && a.id !== newData.id
-          );
+          const symbol = newData.ticker.toUpperCase().trim();
+          const existingIndex = prevAssets.findIndex((a) => a.ticker.toUpperCase() === symbol);
 
           const newTransaction = {
             id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-            shares: newData.shares,
-            price: newData.avgPrice,
+            shares: parseFloat(newData.shares),
+            price: parseFloat(newData.avgPrice),
             date: newData.date || new Date().toISOString().slice(0, 10)
           };
 
@@ -509,13 +637,12 @@
             return updatedList;
           }
 
-          const editIndex = prevAssets.findIndex((a) => a.id === newData.id);
-          if (editIndex >= 0) {
-            return prevAssets.map((a) => (a.id === newData.id ? { ...newData, transactions: a.transactions || [newTransaction] } : a));
-          }
-
           const freshAsset = recalculateAssetTotals({
-            ...newData,
+            id: Date.now().toString(),
+            ticker: symbol,
+            name: newData.name || symbol,
+            type: newData.type || 'Acciones',
+            currentPrice: newData.currentPrice || newData.avgPrice,
             transactions: [newTransaction]
           });
 
@@ -523,7 +650,6 @@
         });
       };
 
-      // IMPORTACIÓN JSON: AUMENTA O SUCEDE COMO NUEVAS COMPRAS SEPARADAS
       const handleImportBackup = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -553,36 +679,38 @@
                   const symbol = impAsset.ticker ? impAsset.ticker.toUpperCase().trim() : '';
                   if (!symbol) return;
 
-                  // Extraer compras a importar
                   let incomingTxs = impAsset.transactions && Array.isArray(impAsset.transactions) && impAsset.transactions.length > 0
-                    ? impAsset.transactions
+                    ? impAsset.transactions.map(t => ({
+                        id: t.id || ('tx_imp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5)),
+                        shares: parseFloat(t.shares) || 0,
+                        price: parseFloat(t.price) || 0,
+                        date: t.date || new Date().toISOString().slice(0, 10)
+                      }))
                     : [{
                         id: 'tx_imp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-                        shares: impAsset.shares || 1,
-                        price: impAsset.avgPrice || 1,
+                        shares: parseFloat(impAsset.shares) || 0,
+                        price: parseFloat(impAsset.avgPrice) || parseFloat(impAsset.currentPrice) || 1,
                         date: impAsset.date || new Date().toISOString().slice(0, 10)
                       }];
 
                   const existingIndex = currentAssets.findIndex((a) => a.ticker.toUpperCase() === symbol);
 
                   if (existingIndex >= 0) {
-                    // SI YA EXISTE: ACUMULAR SUS COMPRAS SEPARADAS Y RECALCULAR PROMEDIOS
                     const existing = currentAssets[existingIndex];
                     const mergedTxs = [...(existing.transactions || []), ...incomingTxs];
 
                     currentAssets[existingIndex] = recalculateAssetTotals({
                       ...existing,
-                      currentPrice: impAsset.currentPrice || existing.currentPrice,
+                      currentPrice: parseFloat(impAsset.currentPrice) || existing.currentPrice,
                       transactions: mergedTxs
                     });
                   } else {
-                    // SI ES UN ACTIVO NUEVO: AGREGAR
                     const fresh = recalculateAssetTotals({
-                      id: 'imp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+                      id: impAsset.id || ('imp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5)),
                       ticker: symbol,
                       name: impAsset.name || symbol,
                       type: impAsset.type || 'Acciones',
-                      currentPrice: impAsset.currentPrice || impAsset.avgPrice || 1,
+                      currentPrice: parseFloat(impAsset.currentPrice) || parseFloat(impAsset.avgPrice) || 1,
                       transactions: incomingTxs
                     });
                     currentAssets.push(fresh);
@@ -592,9 +720,10 @@
                 return currentAssets;
               });
 
-              alert('¡Respaldo importado con éxito! Las posiciones existentes han acumulado sus compras en el historial.');
+              alert('¡Respaldo importado con éxito!');
             }
           } catch (err) {
+            console.error(err);
             alert('Error al procesar el archivo JSON.');
           }
         };
@@ -627,8 +756,9 @@
 
       const handleResetToDefault = () => {
         if (window.confirm('¿Deseas restaurar la lista de activos e historial de fábrica?')) {
-          setAssets(INITIAL_ASSETS);
-          localStorage.setItem('portfolio_assets_v28', JSON.stringify(INITIAL_ASSETS));
+          const resetList = INITIAL_ASSETS.map(recalculateAssetTotals);
+          setAssets(resetList);
+          localStorage.setItem('portfolio_assets_v31', JSON.stringify(resetList));
         }
       };
 
@@ -641,8 +771,8 @@
           : assets.filter(a => a.type === selectedCategoryTotal);
 
         filtered.forEach((asset) => {
-          totalInvested += asset.shares * asset.avgPrice;
-          totalCurrentValue += asset.shares * asset.currentPrice;
+          totalInvested += (asset.shares || 0) * (asset.avgPrice || 0);
+          totalCurrentValue += (asset.shares || 0) * (asset.currentPrice || 0);
         });
 
         const totalProfit = totalCurrentValue - totalInvested;
@@ -657,7 +787,7 @@
         let maxAsset = null;
 
         assets.forEach(a => {
-          const val = a.shares * a.currentPrice;
+          const val = (a.shares || 0) * (a.currentPrice || 0);
           if (val > maxVal) {
             maxVal = val;
             maxAsset = a;
@@ -677,8 +807,8 @@
         let runningPatrimony = 0;
 
         return activeAssets.map((asset) => {
-          const itemInvested = asset.shares * asset.avgPrice;
-          const itemPatrimony = asset.shares * asset.currentPrice;
+          const itemInvested = (asset.shares || 0) * (asset.avgPrice || 0);
+          const itemPatrimony = (asset.shares || 0) * (asset.currentPrice || 0);
 
           runningInvested += itemInvested;
           runningPatrimony += itemPatrimony;
@@ -694,7 +824,7 @@
 
       const globalPieData = useMemo(() => {
         const grouped = assets.reduce((acc, asset) => {
-          const value = asset.shares * asset.currentPrice;
+          const value = (asset.shares || 0) * (asset.currentPrice || 0);
           acc[asset.type] = (acc[asset.type] || 0) + value;
           return acc;
         }, {});
@@ -705,11 +835,11 @@
       const categoryChartsData = useMemo(() => {
         return ASSET_TYPES.map((category) => {
           const categoryAssets = assets.filter(a => a.type === category);
-          const totalCategoryValue = categoryAssets.reduce((acc, a) => acc + (a.shares * a.currentPrice), 0);
+          const totalCategoryValue = categoryAssets.reduce((acc, a) => acc + ((a.shares || 0) * (a.currentPrice || 0)), 0);
           
           const items = categoryAssets.map((asset) => ({
             name: asset.ticker,
-            value: asset.shares * asset.currentPrice
+            value: (asset.shares || 0) * (asset.currentPrice || 0)
           }));
 
           return {
@@ -720,9 +850,7 @@
         }).filter(cat => cat.items.length > 0);
       }, [assets]);
 
-      const totalDividends = useMemo(() => {
-        return dividends.reduce((acc, curr) => acc + curr.amount, 0);
-      }, [dividends]);
+      const totalDividends = useMemo(() => dividends.reduce((acc, curr) => acc + curr.amount, 0), [dividends]);
 
       const filteredAssets = useMemo(() => {
         return assets.filter((asset) => {
@@ -730,8 +858,8 @@
                                 asset.name.toLowerCase().includes(searchTerm.toLowerCase());
           const matchesType = filterType === 'Todos' || asset.type === filterType;
           
-          const invested = asset.shares * asset.avgPrice;
-          const currentVal = asset.shares * asset.currentPrice;
+          const invested = (asset.shares || 0) * (asset.avgPrice || 0);
+          const currentVal = (asset.shares || 0) * (asset.currentPrice || 0);
           const profit = currentVal - invested;
 
           let matchesProfit = true;
@@ -782,8 +910,8 @@
         doc.text('Detalle de Posiciones en Portafolio', 14, doc.lastAutoTable.finalY + 12);
 
         const tableRows = assets.map(asset => {
-          const invested = asset.shares * asset.avgPrice;
-          const current = asset.shares * asset.currentPrice;
+          const invested = (asset.shares || 0) * (asset.avgPrice || 0);
+          const current = (asset.shares || 0) * (asset.currentPrice || 0);
           const profit = current - invested;
           const pct = invested > 0 ? (profit / invested) * 100 : 0;
 
@@ -791,7 +919,7 @@
             asset.ticker,
             asset.name,
             asset.type,
-            asset.shares.toString(),
+            (asset.shares || 0).toString(),
             formatCurrency(asset.avgPrice),
             formatCurrency(asset.currentPrice),
             formatCurrency(current),
@@ -1067,7 +1195,7 @@
                 </button>
 
                 <button
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => { setEditingAsset(null); setIsModalOpen(true); }}
                   className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl transition-all text-xs sm:text-sm shadow-md"
                 >
                   <Icon name="plus" className="w-4 h-4" />
@@ -1151,7 +1279,7 @@
               </div>
             </div>
 
-            {/* TABLA DE POSICIONES CON LOGOS Y BADGES ALINEADOS */}
+            {/* TABLA DE POSICIONES CON LOGOS Y DESPLEGABLES */}
             <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
@@ -1210,8 +1338,8 @@
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50 text-xs sm:text-sm">
                     {filteredAssets.map((asset) => {
-                      const investedTotal = asset.shares * asset.avgPrice;
-                      const totalVal = asset.shares * asset.currentPrice;
+                      const investedTotal = (asset.shares || 0) * (asset.avgPrice || 0);
+                      const totalVal = (asset.shares || 0) * (asset.currentPrice || 0);
                       const profitAmount = totalVal - investedTotal;
                       const profitPct = investedTotal > 0 ? (profitAmount / investedTotal) * 100 : 0;
                       const isExpanded = expandedAssetIds.includes(asset.id);
@@ -1230,7 +1358,6 @@
                               </button>
                             </td>
                             <td className="py-3 font-medium">
-                              {/* CONTENEDOR FLEX PARA LOGO, TICKER Y BADGE ALINEADOS */}
                               <div className="flex items-center gap-2.5">
                                 <AssetLogo ticker={asset.ticker} type={asset.type} />
                                 <div>
@@ -1256,7 +1383,7 @@
                             </td>
                             <td className="py-3 text-center">
                               <div className="flex items-center justify-center gap-1">
-                                <button onClick={() => { setEditingAsset(asset); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-500 p-1" title="Agregar más compras a este activo">
+                                <button onClick={() => { setEditingAsset(asset); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-500 p-1" title="Añadir más compras a este activo">
                                   <Icon name="plus-circle" className="w-4 h-4" />
                                 </button>
                                 <button onClick={() => setAssets(assets.filter(a => a.id !== asset.id))} className="text-slate-400 hover:text-rose-500 p-1" title="Eliminar todo el activo">
@@ -1266,7 +1393,7 @@
                             </td>
                           </tr>
 
-                          {/* SUB-TABLA DESPLEGABLE CON HISTORIAL DE COMPRAS */}
+                          {/* HISTORIAL INDIVIDUAL DE COMPRAS */}
                           {isExpanded && (
                             <tr>
                               <td colSpan="9" className="bg-slate-100/80 dark:bg-slate-900/80 p-3 sm:p-4 border-y border-slate-200 dark:border-slate-700">
@@ -1680,7 +1807,7 @@
             </div>
           </div>
 
-          {/* PANEL 5: ALERTA DE CONCENTRACIÓN DE RIESGO EDITABLE */}
+          {/* PANEL 5: ALERTA DE CONCENTRACIÓN DE RIESGO */}
           <div className={`fixed top-0 right-0 h-full w-[360px] sm:w-[420px] bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-30 transform transition-transform duration-300 overflow-y-auto p-4 sm:p-6 ${isRiskAlertDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
               <h2 className="text-lg font-bold flex items-center gap-2 text-rose-500">

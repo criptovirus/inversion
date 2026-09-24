@@ -1,0 +1,2137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Patrimonio e Inversiones</title>
+  
+  <!-- FAVICON DE INVERSIÓN Y RENTABILIDAD PARA LA PESTAÑA DEL NAVEGADOR -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Recharts CDN -->
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  
+  <!-- Babel Standalone con compatibilidad para GitHub Pages -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Exportación PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 overflow-x-hidden">
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module">
+    const { useState, useEffect, useMemo, useRef } = React;
+    const { 
+      PieChart, Pie, Cell, Tooltip: RechartsTooltip, ResponsiveContainer, 
+      LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, ReferenceLine 
+    } = window.Recharts;
+
+    const Icon = ({ name, className = "w-4 h-4" }) => {
+      useEffect(() => {
+        if (window.lucide) window.lucide.createIcons();
+      }, [name]);
+      return <i data-lucide={name} className={className}></i>;
+    };
+
+    const AssetLogo = ({ ticker, type }) => {
+      const [imgError, setImgError] = useState(false);
+      const cleanTicker = ticker.toUpperCase().trim();
+
+      const getLogoUrl = (symbol, assetType) => {
+        if (assetType === 'Cripto' || ['BTC', 'ETH', 'SOL', 'UNI', 'UNISWAP', 'ADA', 'LINK', 'CHAINLINK', 'SUSHI', 'NEAR', 'RAY', 'BGB'].includes(symbol)) {
+          const cryptoLookup = symbol === 'UNISWAP' ? 'uni' : symbol === 'CHAINLINK' ? 'link' : symbol.toLowerCase();
+          return `https://assets.coincap.io/assets/icons/${cryptoLookup}@2x.png`;
+        }
+        return `https://assets.parqet.com/logos/symbol/${symbol}?format=png`;
+      };
+
+      if (imgError || type === 'Efectivo') {
+        return (
+          <div className="w-5 h-5 rounded bg-blue-500/10 text-blue-500 font-extrabold text-[8px] flex items-center justify-center border border-blue-500/20 shrink-0">
+            {cleanTicker.slice(0, 3)}
+          </div>
+        );
+      }
+
+      return (
+        <img
+          src={getLogoUrl(cleanTicker, type)}
+          alt={cleanTicker}
+          onError={() => setImgError(true)}
+          className="w-5 h-5 rounded object-contain bg-white dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 shadow-sm shrink-0"
+        />
+      );
+    };
+
+    // DATOS DE RESPALDO ACTUALIZADOS CON TU ARCHIVO JSON
+    const INITIAL_ASSETS = [
+      {
+        id: "1790278221218",
+        ticker: "BGB",
+        name: "BGB",
+        type: "Cripto",
+        shares: 283.31,
+        avgPrice: 2.05,
+        currentPrice: 1.98,
+        transactions: [
+          { id: "tx_1790278221217_9i8", shares: 283.31, price: 2.05, date: "2026-09-24", type: "BUY" }
+        ]
+      },
+      {
+        id: "1789855823132",
+        ticker: "USD",
+        name: "Ahorro",
+        type: "Efectivo",
+        shares: 6406.2325,
+        avgPrice: 1,
+        currentPrice: 1,
+        targetPrice: null,
+        date: "2026-09-19",
+        transactions: [
+          { id: "tx_1789855823132_q1d", shares: 6232.41, price: 1, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1789855855357_jz6", shares: 176.51, price: 1, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1789856483457_js4", shares: 126.1, price: 1, date: "2026-09-19", type: "BUY" },
+          { id: "tx_usd_1790006279614_0tz", shares: 125.47924, price: 1, date: "2026-09-21", type: "SELL" },
+          { id: "tx_usd_1790006313868_v18", shares: 124.83412, price: 1, date: "2026-09-21", type: "SELL" },
+          { id: "tx_usd_1790006340010_dh4", shares: 125.49444, price: 1, date: "2026-09-21", type: "SELL" },
+          { id: "tx_usd_1790006372269_eql", shares: 124.8464, price: 1, date: "2026-09-21", type: "SELL" },
+          { id: "tx_1790006616272_4up", shares: 256.33, price: 1, date: "2026-09-21", type: "BUY" },
+          { id: "tx_usd_1790181248206_al3", shares: 584.8227, price: 1, date: "2026-09-23", type: "BUY" },
+          { id: "tx_usd_1790278221218_ejy", shares: 469.286, price: 1, date: "2026-09-24", type: "SELL" }
+        ]
+      },
+      {
+        id: "2",
+        ticker: "VGT",
+        name: "Vanguard Tech ETF",
+        type: "Acciones",
+        shares: 2.04786,
+        avgPrice: 122.65,
+        currentPrice: 126.42,
+        targetPrice: null,
+        transactions: [
+          { id: "tx_imp_1789855084148_tuh", shares: 1.03886, price: 120.99, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1790006279613_i5g", shares: 1.009, price: 124.36, date: "2026-09-21", type: "BUY" }
+        ]
+      },
+      {
+        id: "3",
+        ticker: "BTC",
+        name: "Bitcoin",
+        type: "Cripto",
+        shares: 0.00239,
+        avgPrice: 76111.1,
+        currentPrice: 84355,
+        targetPrice: 70000,
+        transactions: [
+          { id: "tx_imp_1789786970435_c90", shares: 0.002387, price: 76111.1, date: "2026-09-19", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084147_s8s",
+        ticker: "SUSHI",
+        name: "SUSHI",
+        type: "Cripto",
+        shares: 266.02,
+        avgPrice: 0.79,
+        currentPrice: 0.232499,
+        transactions: [
+          { id: "tx_imp_1789855084147_rt5", shares: 266.02, price: 0.7909, date: "2026-09-19", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_s5i",
+        ticker: "NEAR",
+        name: "NEAR",
+        type: "Cripto",
+        shares: 62.92,
+        avgPrice: 3.53,
+        currentPrice: 4.59,
+        transactions: [
+          { id: "tx_imp_1789786970434_oce", shares: 62.92, price: 3.53, date: "2026-09-19", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_wy6",
+        ticker: "RAY",
+        name: "RAY",
+        type: "Cripto",
+        shares: 0,
+        avgPrice: 1.96,
+        currentPrice: 2.09,
+        transactions: [
+          { id: "tx_imp_1789786970435_wkm", shares: 288.76, price: 1.959, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1790181248206_h3l", shares: 288.76, price: 2.03, date: "2026-09-23", type: "SELL" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_hs8",
+        ticker: "CHAINLINK",
+        name: "LINK",
+        type: "Cripto",
+        shares: 23.91,
+        avgPrice: 8.36,
+        currentPrice: 13.23,
+        transactions: [
+          { id: "tx_imp_1789786970435_uya", shares: 23.91, price: 8.36, date: "2026-09-19", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_q33",
+        ticker: "ETH",
+        name: "ETH",
+        type: "Cripto",
+        shares: 0.1806,
+        avgPrice: 1372.66,
+        currentPrice: 2688.83,
+        transactions: [
+          { id: "tx_imp_1789786970435_v4d", shares: 0.1806, price: 1372.66, date: "2026-09-19", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_t9o",
+        ticker: "UNISWAP",
+        name: "UNI",
+        type: "Cripto",
+        shares: 78.72,
+        avgPrice: 3.1,
+        currentPrice: 9.26,
+        transactions: [
+          { id: "tx_imp_1789855214743_hpx", shares: 78.72, price: 3.1, date: "2026-09-19", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_zay",
+        ticker: "HIVE",
+        name: "HIVE",
+        type: "Acciones",
+        shares: 6,
+        avgPrice: 3.33,
+        currentPrice: 3.53,
+        transactions: [
+          { id: "tx_imp_1789786970436_20w", shares: 3, price: 3.17, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1789999784820_q2u", shares: 3, price: 3.48, date: "2026-09-21", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_vqo",
+        ticker: "TE",
+        name: "TE",
+        type: "Acciones",
+        shares: 5,
+        avgPrice: 4.64,
+        currentPrice: 4.36,
+        transactions: [
+          { id: "tx_imp_1789786970436_ac6", shares: 2, price: 5.11, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1789999818292_fib", shares: 3, price: 4.33, date: "2026-09-21", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_ryr",
+        ticker: "DRAM",
+        name: "DRAM",
+        type: "Acciones",
+        shares: 3.9972,
+        avgPrice: 61.21,
+        currentPrice: 63.67,
+        transactions: [
+          { id: "tx_imp_1789786970436_neg", shares: 1.95776, price: 61.22, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1790006313868_gnf", shares: 2.03944, price: 61.21, date: "2026-09-21", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_n5w",
+        ticker: "JPM",
+        name: "JPM",
+        type: "Acciones",
+        shares: 0.69325,
+        avgPrice: 353.9,
+        currentPrice: 340.01,
+        transactions: [
+          { id: "tx_imp_1789786970437_mwt", shares: 0.3366, price: 356.05, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1790006340009_iw6", shares: 0.35665, price: 351.87, date: "2026-09-21", type: "BUY" }
+        ]
+      },
+      {
+        id: "imp_1789855084148_ywd",
+        ticker: "GOOG",
+        name: "GOOG",
+        type: "Acciones",
+        shares: 0.70865,
+        avgPrice: 345.31,
+        currentPrice: 347.35,
+        transactions: [
+          { id: "tx_imp_1789786970437_wyq", shares: 0.3594, price: 333.5, date: "2026-09-19", type: "BUY" },
+          { id: "tx_1790006372269_3qh", shares: 0.34925, price: 357.47, date: "2026-09-21", type: "BUY" }
+        ]
+      }
+    ];
+
+    const INITIAL_DIVIDENDS = [];
+    const INITIAL_PRICE_ALERTS = [];
+
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+    const ASSET_TYPES = ['Efectivo', 'Acciones', 'Cripto', 'Bienes Raíces', 'Otros'];
+
+    const KNOWN_CRYPTO_MAP = {
+      'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'ADA': 'cardano',
+      'UNI': 'uniswap', 'UNISWAP': 'uniswap', 'LINK': 'chainlink', 'CHAINLINK': 'chainlink', 
+      'NEAR': 'near', 'SUSHI': 'sushiswap', 'RAY': 'raydium', 'DOGE': 'dogecoin',
+      'XRP': 'ripple', 'DOT': 'polkadot', 'AVAX': 'avalanche-2', 'SHIB': 'shiba-inu',
+      'BGB': 'bitget-token'
+    };
+
+    const HighContrastPieTooltip = ({ active, payload, totalValue, isPrivate }) => {
+      if (active && payload && payload.length) {
+        const data = payload[0];
+        const val = data.value;
+        const percentage = totalValue > 0 ? ((val / totalValue) * 100).toFixed(2) : 0;
+
+        return (
+          <div className="bg-slate-950 border-2 border-blue-500 p-2.5 rounded-xl shadow-2xl text-white z-50">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.fill }}></span>
+              <p className="font-bold text-xs text-slate-100">{data.name}</p>
+            </div>
+            <p className="text-sm font-black text-emerald-400">
+              {isPrivate ? '****' : `$${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+            </p>
+            <p className="text-[10px] font-semibold text-blue-300 mt-0.5">
+              Porcentaje: <span className="text-white font-bold">{percentage}%</span>
+            </p>
+          </div>
+        );
+      }
+      return null;
+    };
+
+    // MOTOR DE BÚSQUEDA DE PRECIOS EN TIEMPO REAL
+    async function fetchRealTimePrice(ticker, type = 'Acciones') {
+      const cleanSymbol = ticker.toUpperCase().trim();
+      if (!cleanSymbol || cleanSymbol === 'USD') return 1;
+
+      // 1. SI ES CRIPTO
+      if (type === 'Cripto' || KNOWN_CRYPTO_MAP[cleanSymbol]) {
+        try {
+          let coinId = KNOWN_CRYPTO_MAP[cleanSymbol];
+
+          if (!coinId) {
+            const searchRes = await fetch(`https://api.coingecko.com/api/v3/search?query=${cleanSymbol}`);
+            const searchData = await searchRes.json();
+            if (searchData && searchData.coins && searchData.coins.length > 0) {
+              const match = searchData.coins.find(c => c.symbol.toUpperCase() === cleanSymbol) || searchData.coins[0];
+              coinId = match.id;
+            }
+          }
+
+          if (coinId) {
+            const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`);
+            const priceData = await priceRes.json();
+            if (priceData && priceData[coinId] && priceData[coinId].usd) {
+              return priceData[coinId].usd;
+            }
+          }
+        } catch (e) {
+          console.warn(`Error al consultar Cripto (${cleanSymbol}) en CoinGecko:`, e);
+        }
+      }
+
+      // 2. SI ES ACCIÓN / ETF
+      const proxies = [
+        `https://corsproxy.io/?https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}`)}`
+      ];
+
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl);
+          if (!res.ok) continue;
+          
+          const text = await res.text();
+          const data = JSON.parse(text);
+          const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+
+          if (price && price > 0) {
+            return price;
+          }
+        } catch (e) {
+          console.warn(`Falló intento con proxy para (${cleanSymbol}):`, e);
+        }
+      }
+
+      // 3. RESPALDO PAR YAHOO CRIPTO
+      if (type === 'Cripto') {
+        try {
+          const cryptoYahooSymbol = `${cleanSymbol}-USD`;
+          const res = await fetch(`https://corsproxy.io/?https://query1.finance.yahoo.com/v8/finance/chart/${cryptoYahooSymbol}`);
+          const data = await res.json();
+          const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+          if (price && price > 0) return price;
+        } catch (e) {
+          console.warn(`Error consultando Yahoo Cripto Par (${cleanSymbol}-USD):`, e);
+        }
+      }
+
+      return null;
+    }
+
+    const recalculateAssetTotals = (asset) => {
+      const rawTxs = asset.transactions || [];
+      let txs = rawTxs.map(t => ({
+        ...t,
+        shares: parseFloat(t.shares) || 0,
+        price: parseFloat(t.price) || 0,
+        type: t.type || 'BUY'
+      }));
+
+      if (txs.length === 0 && (asset.shares || asset.avgPrice)) {
+        txs = [{
+          id: 'tx_auto_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+          shares: parseFloat(asset.shares) || 0,
+          price: parseFloat(asset.avgPrice) || parseFloat(asset.currentPrice) || 1,
+          date: asset.date || new Date().toISOString().slice(0, 10),
+          type: 'BUY'
+        }];
+      }
+
+      let totalShares = 0;
+      let totalBuyCost = 0;
+      let totalBuyShares = 0;
+
+      txs.forEach((t) => {
+        if (t.type === 'SELL') {
+          totalShares -= t.shares;
+        } else {
+          totalShares += t.shares;
+          totalBuyCost += (t.shares * t.price);
+          totalBuyShares += t.shares;
+        }
+      });
+
+      const avgPrice = totalBuyShares > 0 ? totalBuyCost / totalBuyShares : 0;
+
+      return {
+        ...asset,
+        shares: Math.max(0, Math.round(totalShares * 100000) / 100000),
+        avgPrice: Math.round(avgPrice * 100) / 100,
+        transactions: txs
+      };
+    };
+
+    function AssetModal({ isOpen, onClose, onSaveAsset, initialData = null }) {
+      const [operationType, setOperationType] = useState('BUY');
+      const [formData, setFormData] = useState({
+        ticker: '', name: '', type: 'Acciones', shares: '', avgPrice: '', currentPrice: '', date: ''
+      });
+
+      useEffect(() => {
+        if (initialData) {
+          setFormData({
+            ticker: initialData.ticker, name: initialData.name, type: initialData.type,
+            shares: '', avgPrice: '', currentPrice: initialData.currentPrice || '',
+            date: new Date().toISOString().slice(0, 10)
+          });
+        } else {
+          setFormData({ ticker: '', name: '', type: 'Acciones', shares: '', avgPrice: '', currentPrice: '', date: new Date().toISOString().slice(0, 10) });
+        }
+        setOperationType('BUY');
+      }, [initialData, isOpen]);
+
+      if (!isOpen) return null;
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const sharesNum = parseFloat(formData.shares);
+        const avgPriceNum = parseFloat(formData.avgPrice);
+        const currentPriceNum = formData.currentPrice !== '' ? parseFloat(formData.currentPrice) : avgPriceNum;
+
+        if (!formData.ticker || isNaN(sharesNum) || isNaN(avgPriceNum) || sharesNum <= 0 || avgPriceNum <= 0) {
+          alert('Por favor ingresa un ticker válido y valores mayores a cero.');
+          return;
+        }
+
+        if (operationType === 'SELL' && initialData && sharesNum > initialData.shares) {
+          alert(`No puedes vender más unidades de las que posees (${initialData.shares}).`);
+          return;
+        }
+
+        onSaveAsset({
+          id: initialData ? initialData.id : Date.now().toString(),
+          ticker: formData.ticker.toUpperCase().trim(),
+          name: formData.name.trim() || formData.ticker.toUpperCase().trim(),
+          type: formData.type,
+          shares: sharesNum,
+          avgPrice: avgPriceNum,
+          currentPrice: currentPriceNum,
+          date: formData.date || new Date().toISOString().slice(0, 10),
+          operationType
+        });
+        onClose();
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-5 sm:p-6 shadow-2xl text-slate-800 dark:text-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <Icon name={operationType === 'BUY' ? "plus-circle" : "minus-circle"} className={`w-5 h-5 ${operationType === 'BUY' ? 'text-blue-500' : 'text-rose-500'}`} />
+                <h3 className="text-lg sm:text-xl font-bold">{initialData ? `Operar en ${initialData.ticker}` : 'Registrar Operación'}</h3>
+              </div>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-4 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setOperationType('BUY')}
+                className={`py-2 text-xs font-bold rounded-lg transition-all ${operationType === 'BUY' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                🛒 COMPRAR (Inversión)
+              </button>
+              <button
+                type="button"
+                onClick={() => setOperationType('SELL')}
+                className={`py-2 text-xs font-bold rounded-lg transition-all ${operationType === 'SELL' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                💵 VENDER (Liberar Liquidez)
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-4 space-y-3 sm:space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Ticker / Símbolo *</label>
+                <input
+                  type="text"
+                  placeholder="Ej. AAPL, VGT, BTC, BGB"
+                  value={formData.ticker}
+                  onChange={(e) => setFormData({ ...formData, ticker: e.target.value })}
+                  disabled={!!initialData}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Nombre Corto</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Apple Inc."
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  disabled={!!initialData}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Tipo de Activo</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  disabled={!!initialData}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                >
+                  {ASSET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                    {operationType === 'BUY' ? 'Cantidad a Comprar *' : 'Cantidad a Vender *'}
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="0.00"
+                    value={formData.shares}
+                    onChange={(e) => setFormData({ ...formData, shares: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                    {operationType === 'BUY' ? 'Precio Compra ($) *' : 'Precio Venta ($) *'}
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="0.00"
+                    value={formData.avgPrice}
+                    onChange={(e) => setFormData({ ...formData, avgPrice: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Precio Actual Mercado ($)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Ej. 220.30"
+                    value={formData.currentPrice}
+                    onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Fecha Operación</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-slate-200 dark:border-slate-700">
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  Cancelar
+                </button>
+                <button type="submit" className={`px-4 py-2 text-sm font-semibold rounded-lg text-white ${operationType === 'BUY' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-rose-600 hover:bg-rose-500'}`}>
+                  {operationType === 'BUY' ? 'Confirmar Compra' : 'Confirmar Venta'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    function InvestmentDashboard() {
+      const fileInputRef = useRef(null);
+
+      const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme_mode') === 'dark' || true);
+      const [isPrivateMode, setIsPrivateMode] = useState(false);
+      const [concentrationThreshold, setConcentrationThreshold] = useState(() => parseFloat(localStorage.getItem('concentration_threshold')) || 50);
+      const [headerTitle, setHeaderTitle] = useState(() => localStorage.getItem('dashboard_title') || 'Dashboard de Patrimonio');
+      const [headerSubtitle, setHeaderSubtitle] = useState(() => localStorage.getItem('dashboard_subtitle') || 'Seguimiento financiero en tiempo real.');
+      const [isEditingTitle, setIsEditingTitle] = useState(false);
+      const [isEditingSubtitle, setIsEditingSubtitle] = useState(false);
+
+      const [assets, setAssets] = useState(() => {
+        try {
+          const savedAssets = localStorage.getItem('portfolio_assets_v31');
+          if (!savedAssets) return INITIAL_ASSETS.map(recalculateAssetTotals);
+          
+          const parsed = JSON.parse(savedAssets);
+          if (!Array.isArray(parsed) || parsed.length === 0) return INITIAL_ASSETS.map(recalculateAssetTotals);
+
+          return parsed.map(recalculateAssetTotals);
+        } catch {
+          return INITIAL_ASSETS.map(recalculateAssetTotals);
+        }
+      });
+
+      const [dividends, setDividends] = useState(() => {
+        try {
+          const saved = localStorage.getItem('portfolio_dividends_v4');
+          return saved ? JSON.parse(saved) : INITIAL_DIVIDENDS;
+        } catch {
+          return INITIAL_DIVIDENDS;
+        }
+      });
+
+      const [priceAlerts, setPriceAlerts] = useState(() => {
+        try {
+          const saved = localStorage.getItem('portfolio_price_alerts_v1');
+          return saved ? JSON.parse(saved) : INITIAL_PRICE_ALERTS;
+        } catch {
+          return INITIAL_PRICE_ALERTS;
+        }
+      });
+
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [editingAsset, setEditingAsset] = useState(null);
+      const [isRefreshing, setIsRefreshing] = useState(false);
+      const [lastUpdated, setLastUpdated] = useState(null);
+
+      const [expandedAssetIds, setExpandedAssetIds] = useState([]);
+      const [editingTx, setEditingTx] = useState(null);
+      
+      const [editingPriceAssetId, setEditingPriceAssetId] = useState(null);
+      const [tempPriceValue, setTempPriceValue] = useState('');
+
+      const [isChartDrawerOpen, setIsChartDrawerOpen] = useState(false);
+      const [isDivDrawerOpen, setIsDivDrawerOpen] = useState(false);
+      const [isPriceAlertDrawerOpen, setIsPriceAlertDrawerOpen] = useState(false);
+      const [isRiskAlertDrawerOpen, setIsRiskAlertDrawerOpen] = useState(false);
+
+      const [selectedCategoryTotal, setSelectedCategoryTotal] = useState('Todos');
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filterType, setFilterType] = useState('Todos');
+      const [filterProfit, setFilterProfit] = useState('Todos');
+
+      const [divForm, setDivForm] = useState({ ticker: 'AAPL', amount: '' });
+      const [alertForm, setAlertForm] = useState({ ticker: '', targetPrice: '' });
+
+      useEffect(() => {
+        if (darkMode) {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('theme_mode', 'dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('theme_mode', 'light');
+        }
+      }, [darkMode]);
+
+      useEffect(() => {
+        localStorage.setItem('portfolio_assets_v31', JSON.stringify(assets));
+      }, [assets]);
+
+      useEffect(() => {
+        localStorage.setItem('portfolio_dividends_v4', JSON.stringify(dividends));
+      }, [dividends]);
+
+      useEffect(() => {
+        localStorage.setItem('portfolio_price_alerts_v1', JSON.stringify(priceAlerts));
+      }, [priceAlerts]);
+
+      useEffect(() => {
+        localStorage.setItem('concentration_threshold', concentrationThreshold.toString());
+      }, [concentrationThreshold]);
+
+      useEffect(() => {
+        localStorage.setItem('dashboard_title', headerTitle);
+      }, [headerTitle]);
+
+      useEffect(() => {
+        localStorage.setItem('dashboard_subtitle', headerSubtitle);
+      }, [headerSubtitle]);
+
+      const formatCurrency = (val) => {
+        if (isPrivateMode) return '****';
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
+      };
+
+      const toggleExpandAsset = (assetId) => {
+        setExpandedAssetIds((prev) => 
+          prev.includes(assetId) ? prev.filter(id => id !== assetId) : [...prev, assetId]
+        );
+      };
+
+      const handleSaveAsset = async (newData) => {
+        const symbol = newData.ticker.toUpperCase().trim();
+        const isSale = newData.operationType === 'SELL';
+        const sharesNum = parseFloat(newData.shares);
+        const priceNum = parseFloat(newData.avgPrice);
+        const netCashFlow = sharesNum * priceNum;
+
+        let livePrice = newData.currentPrice ? parseFloat(newData.currentPrice) : null;
+        if (!livePrice) {
+          livePrice = await fetchRealTimePrice(symbol, newData.type) || priceNum;
+        }
+
+        setAssets((prevAssets) => {
+          const existingIndex = prevAssets.findIndex((a) => a.ticker.toUpperCase() === symbol);
+
+          const newTransaction = {
+            id: 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+            shares: sharesNum,
+            price: priceNum,
+            date: newData.date || new Date().toISOString().slice(0, 10),
+            type: newData.operationType || 'BUY'
+          };
+
+          let updatedAssets = [...prevAssets];
+
+          if (existingIndex >= 0) {
+            const existing = prevAssets[existingIndex];
+            const updatedTxs = [...(existing.transactions || []), newTransaction];
+            updatedAssets[existingIndex] = recalculateAssetTotals({
+              ...existing,
+              currentPrice: livePrice || existing.currentPrice,
+              transactions: updatedTxs
+            });
+          } else {
+            const freshAsset = recalculateAssetTotals({
+              id: Date.now().toString(),
+              ticker: symbol,
+              name: newData.name || symbol,
+              type: newData.type || 'Acciones',
+              currentPrice: livePrice || priceNum,
+              transactions: [newTransaction]
+            });
+            updatedAssets.unshift(freshAsset);
+          }
+
+          if (symbol !== 'USD') {
+            const usdIndex = updatedAssets.findIndex(a => a.ticker.toUpperCase() === 'USD');
+            const liquidityChange = isSale ? netCashFlow : -netCashFlow;
+
+            const usdTx = {
+              id: 'tx_usd_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+              shares: Math.abs(liquidityChange),
+              price: 1,
+              date: newData.date || new Date().toISOString().slice(0, 10),
+              type: liquidityChange >= 0 ? 'BUY' : 'SELL'
+            };
+
+            if (usdIndex >= 0) {
+              const currentUsd = updatedAssets[usdIndex];
+              const updatedUsdTxs = [...(currentUsd.transactions || []), usdTx];
+              updatedAssets[usdIndex] = recalculateAssetTotals({
+                ...currentUsd,
+                transactions: updatedUsdTxs
+              });
+            } else {
+              updatedAssets.push(recalculateAssetTotals({
+                id: 'usd_' + Date.now(),
+                ticker: 'USD',
+                name: 'Ahorro',
+                type: 'Efectivo',
+                currentPrice: 1,
+                transactions: [usdTx]
+              }));
+            }
+          }
+
+          return updatedAssets;
+        });
+      };
+
+      const handleSaveCurrentPrice = (assetId) => {
+        const newPrice = parseFloat(tempPriceValue);
+        if (isNaN(newPrice) || newPrice < 0) {
+          alert('Por favor ingresa un precio válido.');
+          return;
+        }
+
+        setAssets((prev) => prev.map((asset) => {
+          if (asset.id === assetId) {
+            return { ...asset, currentPrice: newPrice };
+          }
+          return asset;
+        }));
+
+        setEditingPriceAssetId(null);
+        setTempPriceValue('');
+      };
+
+      const handleImportBackup = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            let importedAssetList = [];
+
+            if (Array.isArray(imported)) {
+              importedAssetList = imported;
+            } else if (typeof imported === 'object' && imported !== null) {
+              if (imported.assets && Array.isArray(imported.assets)) importedAssetList = imported.assets;
+              if (imported.dividends && Array.isArray(imported.dividends)) setDividends(imported.dividends);
+              if (imported.priceAlerts && Array.isArray(imported.priceAlerts)) setPriceAlerts(imported.priceAlerts);
+              if (imported.headerTitle) setHeaderTitle(imported.headerTitle);
+              if (imported.headerSubtitle) setHeaderSubtitle(imported.headerSubtitle);
+              if (imported.concentrationThreshold) setConcentrationThreshold(imported.concentrationThreshold);
+            }
+
+            if (importedAssetList.length > 0) {
+              setAssets((prevAssets) => {
+                let currentAssets = [...prevAssets];
+
+                importedAssetList.forEach((impAsset) => {
+                  const symbol = impAsset.ticker ? impAsset.ticker.toUpperCase().trim() : '';
+                  if (!symbol) return;
+
+                  let incomingTxs = impAsset.transactions && Array.isArray(impAsset.transactions) && impAsset.transactions.length > 0
+                    ? impAsset.transactions.map(t => ({
+                        id: t.id || ('tx_imp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5)),
+                        shares: parseFloat(t.shares) || 0,
+                        price: parseFloat(t.price) || 0,
+                        date: t.date || new Date().toISOString().slice(0, 10),
+                        type: t.type || 'BUY'
+                      }))
+                    : [{
+                        id: 'tx_imp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+                        shares: parseFloat(impAsset.shares) || 0,
+                        price: parseFloat(impAsset.avgPrice) || parseFloat(impAsset.currentPrice) || 1,
+                        date: impAsset.date || new Date().toISOString().slice(0, 10),
+                        type: 'BUY'
+                      }];
+
+                  const existingIndex = currentAssets.findIndex((a) => a.ticker.toUpperCase() === symbol);
+
+                  if (existingIndex >= 0) {
+                    const existing = currentAssets[existingIndex];
+                    const mergedTxs = [...(existing.transactions || []), ...incomingTxs];
+
+                    currentAssets[existingIndex] = recalculateAssetTotals({
+                      ...existing,
+                      currentPrice: parseFloat(impAsset.currentPrice) || existing.currentPrice,
+                      transactions: mergedTxs
+                    });
+                  } else {
+                    const fresh = recalculateAssetTotals({
+                      id: impAsset.id || ('imp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5)),
+                      ticker: symbol,
+                      name: impAsset.name || symbol,
+                      type: impAsset.type || 'Acciones',
+                      currentPrice: parseFloat(impAsset.currentPrice) || parseFloat(impAsset.avgPrice) || 1,
+                      transactions: incomingTxs
+                    });
+                    currentAssets.push(fresh);
+                  }
+                });
+
+                return currentAssets;
+              });
+
+              alert('¡Respaldo importado con éxito!');
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Error al procesar el archivo JSON.');
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      const handleDeleteTransaction = (assetId, txId) => {
+        if (!window.confirm('¿Deseas eliminar este registro de operación?')) return;
+
+        setAssets((prev) => prev.map((asset) => {
+          if (asset.id !== assetId) return asset;
+          const remainingTxs = (asset.transactions || []).filter(t => t.id !== txId);
+          return recalculateAssetTotals({ ...asset, transactions: remainingTxs });
+        }));
+      };
+
+      const handleUpdateTransaction = (assetId, txId, newShares, newPrice, newDate) => {
+        setAssets((prev) => prev.map((asset) => {
+          if (asset.id !== assetId) return asset;
+          const updatedTxs = (asset.transactions || []).map(t => {
+            if (t.id === txId) {
+              return { ...t, shares: parseFloat(newShares), price: parseFloat(newPrice), date: newDate };
+            }
+            return t;
+          });
+          return recalculateAssetTotals({ ...asset, transactions: updatedTxs });
+        }));
+        setEditingTx(null);
+      };
+
+      const handleResetToDefault = () => {
+        if (window.confirm('¿Deseas restaurar la lista de activos e historial de fábrica?')) {
+          const resetList = INITIAL_ASSETS.map(recalculateAssetTotals);
+          setAssets(resetList);
+          localStorage.setItem('portfolio_assets_v31', JSON.stringify(resetList));
+        }
+      };
+
+      const metrics = useMemo(() => {
+        let cashTotal = 0;
+        let investedCost = 0;
+        let investmentsCurrentValue = 0;
+
+        const filtered = selectedCategoryTotal === 'Todos' 
+          ? assets 
+          : assets.filter(a => a.type === selectedCategoryTotal);
+
+        filtered.forEach((asset) => {
+          const val = (parseFloat(asset.shares) || 0) * (parseFloat(asset.currentPrice) || 0);
+          const cost = (parseFloat(asset.shares) || 0) * (parseFloat(asset.avgPrice) || 0);
+
+          if (asset.type === 'Efectivo') {
+            cashTotal += val;
+          } else {
+            investedCost += cost;
+            investmentsCurrentValue += val;
+          }
+        });
+
+        const investmentProfit = investmentsCurrentValue - investedCost;
+        const investmentReturnPct = investedCost > 0 ? (investmentProfit / investedCost) * 100 : 0;
+        const totalCapital = cashTotal + investmentsCurrentValue;
+
+        return { 
+          totalCurrentValue: totalCapital, 
+          cashTotal,
+          investedCost, 
+          investmentsCurrentValue, 
+          totalProfit: investmentProfit, 
+          profitPercentage: investmentReturnPct, 
+          count: filtered.length 
+        };
+      }, [assets, selectedCategoryTotal]);
+
+      const maxConcentrationAsset = useMemo(() => {
+        if (metrics.totalCurrentValue === 0) return null;
+        let maxVal = 0;
+        let maxAsset = null;
+
+        assets.forEach(a => {
+          const val = (a.shares || 0) * (a.currentPrice || 0);
+          if (val > maxVal) {
+            maxVal = val;
+            maxAsset = a;
+          }
+        });
+
+        const pct = (maxVal / metrics.totalCurrentValue) * 100;
+        return pct > concentrationThreshold ? { ticker: maxAsset.ticker, pct: pct.toFixed(1) } : null;
+      }, [assets, metrics.totalCurrentValue, concentrationThreshold]);
+
+      const totalPatrimonyLineData = useMemo(() => {
+        const activeAssets = selectedCategoryTotal === 'Todos'
+          ? assets
+          : assets.filter(a => a.type === selectedCategoryTotal);
+
+        let runningInvested = 0;
+        let runningPatrimony = 0;
+
+        return activeAssets.map((asset) => {
+          const itemInvested = (asset.shares || 0) * (asset.avgPrice || 0);
+          const itemPatrimony = (asset.shares || 0) * (asset.currentPrice || 0);
+
+          runningInvested += itemInvested;
+          runningPatrimony += itemPatrimony;
+
+          return {
+            ticker: asset.ticker,
+            patrimonioTotal: Math.round(runningPatrimony * 100) / 100,
+            capitalInvertido: Math.round(runningInvested * 100) / 100,
+            gananciaAcumulada: Math.round((runningPatrimony - runningInvested) * 100) / 100
+          };
+        });
+      }, [assets, selectedCategoryTotal]);
+
+      const globalPieData = useMemo(() => {
+        const grouped = assets.reduce((acc, asset) => {
+          const value = (asset.shares || 0) * (asset.currentPrice || 0);
+          acc[asset.type] = (acc[asset.type] || 0) + value;
+          return acc;
+        }, {});
+
+        return Object.keys(grouped).map((type) => ({ name: type, value: grouped[type] }));
+      }, [assets]);
+
+      const categoryChartsData = useMemo(() => {
+        return ASSET_TYPES.map((category) => {
+          const categoryAssets = assets.filter(a => a.type === category);
+          const totalCategoryValue = categoryAssets.reduce((acc, a) => acc + ((a.shares || 0) * (a.currentPrice || 0)), 0);
+          
+          const items = categoryAssets.map((asset) => ({
+            name: asset.ticker,
+            value: (asset.shares || 0) * (asset.currentPrice || 0)
+          }));
+
+          return {
+            categoryName: category,
+            totalValue: totalCategoryValue,
+            items
+          };
+        }).filter(cat => cat.items.length > 0);
+      }, [assets]);
+
+      const totalDividends = useMemo(() => dividends.reduce((acc, curr) => acc + curr.amount, 0), [dividends]);
+
+      const filteredAssets = useMemo(() => {
+        return assets.filter((asset) => {
+          const matchesSearch = asset.ticker.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                asset.name.toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesType = filterType === 'Todos' || asset.type === filterType;
+          
+          const invested = (asset.shares || 0) * (asset.avgPrice || 0);
+          const currentVal = (asset.shares || 0) * (asset.currentPrice || 0);
+          const profit = currentVal - invested;
+
+          let matchesProfit = true;
+          if (filterProfit === 'Ganancia') matchesProfit = profit > 0;
+          if (filterProfit === 'Perdida') matchesProfit = profit < 0;
+
+          return matchesSearch && matchesType && matchesProfit;
+        });
+      }, [assets, searchTerm, filterType, filterProfit]);
+
+      const handleGeneratePDF = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(18);
+        doc.setTextColor(30, 41, 59);
+        doc.text(headerTitle, 14, 20);
+
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(headerSubtitle, 14, 26);
+        doc.text(`Fecha de informe: ${new Date().toLocaleDateString('es-ES')}`, 14, 31);
+
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(226, 232, 240);
+        doc.line(14, 35, 196, 35);
+
+        doc.setFontSize(12);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Resumen General de Patrimonio e Inversiones', 14, 43);
+
+        const summaryData = [
+          ['Capital Total (Patrimonio)', formatCurrency(metrics.totalCurrentValue)],
+          ['Efectivo (Liquidez)', formatCurrency(metrics.cashTotal)],
+          ['Valor Total en Inversiones', formatCurrency(metrics.investmentsCurrentValue)],
+          ['Ganancia / Pérdida en Inversiones', `${metrics.totalProfit >= 0 ? '+' : ''}${formatCurrency(metrics.totalProfit)} (${metrics.profitPercentage.toFixed(2)}%)`],
+          ['Ingresos por Dividendos', formatCurrency(totalDividends)]
+        ];
+
+        doc.autoTable({
+          startY: 47,
+          head: [['Métrica', 'Monto ($)']],
+          body: summaryData,
+          theme: 'striped',
+          headStyles: { fillColor: [59, 130, 246] }
+        });
+
+        doc.setFontSize(12);
+        doc.text('Detalle de Posiciones en Portafolio', 14, doc.lastAutoTable.finalY + 12);
+
+        const tableRows = assets.map(asset => {
+          const isCash = asset.type === 'Efectivo';
+          const invested = (asset.shares || 0) * (asset.avgPrice || 0);
+          const current = (asset.shares || 0) * (asset.currentPrice || 0);
+          const profit = current - invested;
+          const pct = invested > 0 ? (profit / invested) * 100 : 0;
+
+          return [
+            asset.ticker,
+            asset.name,
+            asset.type,
+            formatCurrency(asset.currentPrice),
+            (asset.shares || 0).toString(),
+            isCash ? '-' : formatCurrency(asset.avgPrice),
+            formatCurrency(current),
+            isCash ? 'Sin riesgo' : `${profit >= 0 ? '+' : ''}${formatCurrency(profit)} (${pct.toFixed(2)}%)`
+          ];
+        });
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 16,
+          head: [['Ticker', 'Nombre', 'Tipo', 'P. Actual', 'Cant.', 'P. Compra', 'Valor Total', 'G/P ($)']],
+          body: tableRows,
+          theme: 'grid',
+          headStyles: { fillColor: [15, 23, 42] },
+          styles: { fontSize: 8 }
+        });
+
+        doc.save(`Reporte_Patrimonio_${new Date().toISOString().slice(0, 10)}.pdf`);
+      };
+
+      const handleAddDividend = (e) => {
+        e.preventDefault();
+        const amt = parseFloat(divForm.amount);
+        if (!amt || amt <= 0) return;
+        setDividends([{ id: Date.now().toString(), ticker: divForm.ticker.toUpperCase(), amount: amt, date: new Date().toISOString().slice(0, 10) }, ...dividends]);
+        setDivForm({ ticker: assets[0]?.ticker || 'AAPL', amount: '' });
+      };
+
+      const handleDeleteDividend = (id) => {
+        if (window.confirm('¿Estás seguro de que deseas eliminar este registro de dividendo?')) {
+          setDividends(dividends.filter(d => d.id !== id));
+        }
+      };
+
+      const handleSaveAlertForm = async (e) => {
+        e.preventDefault();
+        const target = parseFloat(alertForm.targetPrice);
+        const symbol = alertForm.ticker.toUpperCase().trim();
+        if (!symbol || isNaN(target)) return;
+
+        const assetMatch = assets.find(a => a.ticker === symbol);
+        let currPrice = assetMatch ? assetMatch.currentPrice : null;
+        if (!currPrice) {
+          currPrice = await fetchRealTimePrice(symbol) || target;
+        }
+
+        const existingIndex = priceAlerts.findIndex(a => a.ticker === symbol);
+        if (existingIndex >= 0) {
+          const updated = [...priceAlerts];
+          updated[existingIndex] = { ...updated[existingIndex], targetPrice: target, currentPrice: currPrice };
+          setPriceAlerts(updated);
+        } else {
+          setPriceAlerts([{ id: Date.now().toString(), ticker: symbol, targetPrice: target, currentPrice: currPrice }, ...priceAlerts]);
+        }
+
+        setAlertForm({ ticker: '', targetPrice: '' });
+      };
+
+      const handleRemovePriceAlert = (id) => {
+        setPriceAlerts(priceAlerts.filter(a => a.id !== id));
+      };
+
+      const handleExportBackup = () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(
+          JSON.stringify({ 
+            assets, 
+            dividends, 
+            priceAlerts, 
+            headerTitle, 
+            headerSubtitle, 
+            concentrationThreshold 
+          }, null, 2)
+        );
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `Respaldo_Portafolio_${new Date().toISOString().slice(0, 10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+      };
+
+      const handleRefreshPrices = async () => {
+        setIsRefreshing(true);
+        try {
+          const updatedAssets = await Promise.all(
+            assets.map(async (asset) => {
+              if (asset.type === 'Efectivo') return asset;
+              const livePrice = await fetchRealTimePrice(asset.ticker, asset.type);
+              return (livePrice && livePrice > 0) ? { ...asset, currentPrice: livePrice } : asset;
+            })
+          );
+          setAssets(updatedAssets);
+
+          const updatedAlerts = await Promise.all(
+            priceAlerts.map(async (alert) => {
+              const live = await fetchRealTimePrice(alert.ticker);
+              return (live && live > 0) ? { ...alert, currentPrice: live } : alert;
+            })
+          );
+          setPriceAlerts(updatedAlerts);
+
+          setLastUpdated(new Date().toLocaleTimeString());
+        } catch (err) {
+          alert('Error al actualizar precios.');
+        } finally {
+          setIsRefreshing(false);
+        }
+      };
+
+      const closeAllDrawers = () => {
+        setIsChartDrawerOpen(false);
+        setIsDivDrawerOpen(false);
+        setIsPriceAlertDrawerOpen(false);
+        setIsRiskAlertDrawerOpen(false);
+      };
+
+      const isDrawerOpen = isChartDrawerOpen || isDivDrawerOpen || isPriceAlertDrawerOpen || isRiskAlertDrawerOpen;
+
+      return (
+        <div className="p-3 sm:p-6 min-h-screen font-sans relative">
+          <input type="file" accept=".json" ref={fileInputRef} onChange={handleImportBackup} className="hidden" />
+
+          {/* SOLAPAS FLOTANTES LATERALES */}
+          <div className={`fixed top-20 z-40 flex flex-col gap-1.5 transition-all duration-300 ${isDrawerOpen ? 'right-[360px] sm:right-[420px]' : 'right-0'}`}>
+            <button
+              onClick={() => { closeAllDrawers(); setIsChartDrawerOpen(!isChartDrawerOpen); }}
+              className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-l-lg shadow-xl flex items-center justify-center border-l border-y border-blue-400 transition-all"
+              title="Gráficos"
+            >
+              <Icon name="bar-chart-3" className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => { closeAllDrawers(); setIsDivDrawerOpen(!isDivDrawerOpen); }}
+              className="bg-amber-600 hover:bg-amber-500 text-white p-2 rounded-l-lg shadow-xl flex items-center justify-center border-l border-y border-amber-400 transition-all"
+              title="Dividendos"
+            >
+              <Icon name="coins" className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => { closeAllDrawers(); setIsPriceAlertDrawerOpen(!isPriceAlertDrawerOpen); }}
+              className="bg-purple-600 hover:bg-purple-500 text-white p-2 rounded-l-lg shadow-xl flex items-center justify-center border-l border-y border-purple-400 transition-all relative"
+              title="Alertas de Precio Libres"
+            >
+              <Icon name="bell" className="w-4 h-4" />
+              {priceAlerts.length > 0 && (
+                <span className="absolute -top-1 -left-1 bg-rose-500 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center border border-white dark:border-slate-800">
+                  {priceAlerts.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => { closeAllDrawers(); setIsRiskAlertDrawerOpen(!isRiskAlertDrawerOpen); }}
+              className={`p-2 rounded-l-lg shadow-xl flex items-center justify-center border-l border-y transition-all ${maxConcentrationAsset ? 'bg-rose-600 hover:bg-rose-500 text-white border-rose-400 animate-pulse' : 'bg-slate-700 hover:bg-slate-600 text-slate-200 border-slate-500'}`}
+              title="Alerta de Concentración"
+            >
+              <Icon name="shield-alert" className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className={`transition-all duration-300 ${isDrawerOpen ? 'mr-0 xl:mr-[420px]' : 'mr-0'}`}>
+            {/* CABECERA PRINCIPAL */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sm:mb-8">
+              <div>
+                <div className="flex items-center gap-2 group">
+                  {isEditingTitle ? (
+                    <input
+                      type="text"
+                      value={headerTitle}
+                      onChange={(e) => setHeaderTitle(e.target.value)}
+                      onBlur={() => setIsEditingTitle(false)}
+                      onKeyDown={(e) => e.key === 'Enter' && setIsEditingTitle(false)}
+                      autoFocus
+                      className="text-2xl sm:text-3xl font-bold tracking-tight bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg px-2 py-0.5 border border-blue-500 focus:outline-none"
+                    />
+                  ) : (
+                    <h1 
+                      onClick={() => setIsEditingTitle(true)}
+                      className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 cursor-pointer hover:text-blue-500 transition-colors"
+                      title="Haz clic para editar el título"
+                    >
+                      <span>{headerTitle}</span>
+                      <Icon name="pencil" className="w-4 h-4 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity" />
+                    </h1>
+                  )}
+
+                  <button 
+                    onClick={() => setIsPrivateMode(!isPrivateMode)} 
+                    className="text-slate-400 hover:text-blue-500 p-1"
+                    title={isPrivateMode ? "Mostrar montos" : "Ocultar montos"}
+                  >
+                    <Icon name={isPrivateMode ? "eye-off" : "eye"} className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 group mt-1">
+                  {isEditingSubtitle ? (
+                    <input
+                      type="text"
+                      value={headerSubtitle}
+                      onChange={(e) => setHeaderSubtitle(e.target.value)}
+                      onBlur={() => setIsEditingSubtitle(false)}
+                      onKeyDown={(e) => e.key === 'Enter' && setIsEditingSubtitle(false)}
+                      autoFocus
+                      className="text-xs sm:text-sm bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-0.5 border border-blue-500 focus:outline-none w-full max-w-md"
+                    />
+                  ) : (
+                    <p 
+                      onClick={() => setIsEditingSubtitle(true)}
+                      className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 cursor-pointer hover:text-blue-400 transition-colors flex items-center gap-1.5"
+                      title="Haz clic para editar la descripción"
+                    >
+                      <span>{headerSubtitle}</span>
+                      <Icon name="pencil" className="w-3 h-3 opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity" />
+                      {lastUpdated && <span className="text-xs text-blue-500 ml-1">(Act: {lastUpdated})</span>}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3">
+                <button
+                  onClick={() => setDarkMode(!darkMode)}
+                  className="p-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl transition-all flex items-center justify-center"
+                  title={darkMode ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+                >
+                  <Icon name="sun" className="w-4 h-4 text-amber-500" />
+                </button>
+
+                <button
+                  onClick={handleGeneratePDF}
+                  className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md"
+                  title="Descargar Informe en PDF"
+                >
+                  <Icon name="file-text" className="w-4 h-4" />
+                  <span>Reporte PDF</span>
+                </button>
+
+                <button
+                  onClick={handleExportBackup}
+                  className="flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all"
+                >
+                  <Icon name="download" className="w-4 h-4" />
+                  <span>Exportar</span>
+                </button>
+
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  className="flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all"
+                  title="Cargar un JSON para incorporar más compras"
+                >
+                  <Icon name="upload" className="w-4 h-4" />
+                  <span>Importar</span>
+                </button>
+
+                <button
+                  onClick={handleRefreshPrices}
+                  disabled={isRefreshing}
+                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-lg"
+                >
+                  <Icon name="refresh-cw" className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span>En Vivo</span>
+                </button>
+
+                <button
+                  onClick={() => { setEditingAsset(null); setIsModalOpen(true); }}
+                  className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl transition-all text-xs sm:text-sm shadow-md"
+                >
+                  <Icon name="plus" className="w-4 h-4" />
+                  <span>Registrar Operación</span>
+                </button>
+              </div>
+            </div>
+
+            {/* TARJETAS DE DESGLOSE CONCEPTUAL DEL CAPITAL Y LAS INVERSIONES */}
+            <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-slate-200 dark:border-slate-700/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="layers" className="w-5 h-5 text-blue-500" />
+                  <h2 className="text-base sm:text-lg font-bold">Resumen de Capital e Inversiones</h2>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">Filtrar Vista:</span>
+                  <select
+                    value={selectedCategoryTotal}
+                    onChange={(e) => setSelectedCategoryTotal(e.target.value)}
+                    className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-semibold text-blue-500 focus:outline-none"
+                  >
+                    <option value="Todos">Todas las Categorías</option>
+                    {ASSET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Capital Total */}
+                <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1 text-xs font-bold uppercase">
+                    <span>Capital Total</span>
+                    <Icon name="wallet" className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{formatCurrency(metrics.totalCurrentValue)}</div>
+                  <div className="text-[10px] text-slate-400 mt-2">Inversiones + Efectivo Líquido</div>
+                </div>
+
+                {/* Efectivo Líquido */}
+                <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1 text-xs font-bold uppercase">
+                    <span>Efectivo (Liquidez)</span>
+                    <Icon name="banknote" className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div className="text-2xl font-black text-emerald-500">{formatCurrency(metrics.cashTotal)}</div>
+                  <div className="text-[10px] text-slate-400 mt-2">Reserva sin riesgo de mercado</div>
+                </div>
+
+                {/* Valor Total en Inversiones */}
+                <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1 text-xs font-bold uppercase">
+                    <span>Valor Inversiones</span>
+                    <Icon name="trending-up" className="w-4 h-4 text-purple-500" />
+                  </div>
+                  <div className="text-2xl font-black text-purple-500">{formatCurrency(metrics.investmentsCurrentValue)}</div>
+                  <div className="text-[10px] text-slate-400 mt-2">Acciones + Cripto + Bienes Raíces</div>
+                </div>
+
+                {/* Retorno exclusivo de Inversiones */}
+                <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1 text-xs font-bold uppercase">
+                    <span>G/P Inversiones</span>
+                    <Icon name={metrics.totalProfit >= 0 ? "arrow-up-right" : "arrow-down-right"} className={`w-4 h-4 ${metrics.totalProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} />
+                  </div>
+                  <div className={`text-2xl font-black ${metrics.totalProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {metrics.totalProfit >= 0 ? '+' : ''}{formatCurrency(metrics.totalProfit)}
+                  </div>
+                  <div className={`text-[10px] font-bold mt-2 ${metrics.profitPercentage >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {metrics.profitPercentage >= 0 ? '+' : ''}{metrics.profitPercentage.toFixed(2)}% retorno de inversiones
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECCIÓN DEL GRÁFICO LINEAL BASADO EN EL PATRIMONIO TOTAL */}
+            <div className="bg-white dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl mb-6">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <div className="flex items-center gap-2">
+                  <Icon name="trending-up" className="w-4 h-4 text-blue-500" />
+                  <h2 className="text-sm sm:text-base font-bold">Curva de Capital Total Acumulado</h2>
+                </div>
+                <div className="text-xs font-black text-emerald-500">
+                  Capital Final: {formatCurrency(metrics.totalCurrentValue)}
+                </div>
+              </div>
+              
+              <div className="h-56 sm:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={totalPatrimonyLineData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                    <ReferenceLine y={0} stroke="#64748b" strokeDasharray="3 3" />
+                    <XAxis dataKey="ticker" stroke="#94a3b8" fontSize={11} />
+                    <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(val) => `$${val}`} />
+                    <RechartsTooltip formatter={(val) => formatCurrency(val)} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.5rem', fontSize: '11px' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '5px' }} />
+                    <Line type="monotone" dataKey="patrimonioTotal" stroke="#3b82f6" strokeWidth={3} name="Capital Total ($)" dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="capitalInvertido" stroke="#64748b" strokeWidth={1.5} name="Capital Invertido ($)" dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="gananciaAcumulada" stroke="#10b981" strokeWidth={1.5} strokeDasharray="3 3" name="Ganancia Acumulada ($)" dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* TABLA DE POSICIONES CON COMPRA/VENTA Y EDICIÓN DE PRECIO */}
+            <div className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-semibold">Detalle de Posiciones</h2>
+                  <button 
+                    onClick={handleResetToDefault} 
+                    className="text-[10px] text-slate-400 hover:text-blue-500 underline"
+                    title="Restaurar datos iniciales de fábrica"
+                  >
+                    (Restaurar Datos)
+                  </button>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Buscar Ticker..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none w-full sm:w-36"
+                  />
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none"
+                  >
+                    <option value="Todos">Todas las Categorías</option>
+                    {ASSET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select
+                    value={filterProfit}
+                    onChange={(e) => setFilterProfit(e.target.value)}
+                    className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:outline-none"
+                  >
+                    <option value="Todos">Todos los Estados</option>
+                    <option value="Ganancia">Solo Ganancias (+)</option>
+                    <option value="Perdida">Solo Pérdidas (-)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto relative">
+                <table className="w-full border-collapse text-left text-xs sm:text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-400 text-xs">
+                      <th className="py-2.5 px-2 text-center w-8 bg-white dark:bg-slate-800"></th>
+                      <th className="py-2.5 px-3 text-left font-semibold sticky left-0 bg-white dark:bg-slate-800 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">Activo</th>
+                      <th className="py-2.5 px-3 text-right font-bold text-blue-500 whitespace-nowrap">P. Actual</th>
+                      <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">Cant. Total</th>
+                      <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">P. Promedio</th>
+                      <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">Valor Total</th>
+                      <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">G/P ($)</th>
+                      <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">Retorno</th>
+                      <th className="py-2.5 px-2 text-center font-semibold w-16 whitespace-nowrap">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                    {filteredAssets.map((asset) => {
+                      const isCash = asset.type === 'Efectivo';
+                      const investedTotal = (asset.shares || 0) * (asset.avgPrice || 0);
+                      const totalVal = (asset.shares || 0) * (asset.currentPrice || 0);
+                      const profitAmount = totalVal - investedTotal;
+                      const profitPct = investedTotal > 0 ? (profitAmount / investedTotal) * 100 : 0;
+                      const isExpanded = expandedAssetIds.includes(asset.id);
+                      const isEditingPrice = editingPriceAssetId === asset.id;
+                      const txList = asset.transactions || [];
+
+                      return (
+                        <React.Fragment key={asset.id}>
+                          <tr className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 ${isExpanded ? 'bg-blue-50/50 dark:bg-slate-800/80' : ''}`}>
+                            <td className="py-2 px-2 text-center bg-white dark:bg-slate-800">
+                              <button 
+                                onClick={() => toggleExpandAsset(asset.id)}
+                                className="p-0.5 text-slate-400 hover:text-blue-500 rounded transition-colors"
+                                title={isExpanded ? "Ocultar historial de operaciones" : "Ver historial de operaciones"}
+                              >
+                                <Icon name={isExpanded ? "chevron-down" : "chevron-right"} className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                            {/* COLUMNA TICKER FIJA */}
+                            <td className="py-2 px-3 font-medium whitespace-nowrap sticky left-0 bg-white dark:bg-slate-800 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                              <div className="flex items-center gap-2">
+                                <AssetLogo ticker={asset.ticker} type={asset.type} />
+                                <div className="leading-tight">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-blue-500 leading-none text-xs sm:text-sm">{asset.ticker}</span>
+                                    <span className="inline-flex items-center text-[9px] leading-none bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-300 font-bold px-1 py-0.5 rounded-full border border-blue-200 dark:border-blue-800/50">
+                                      {txList.length}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 truncate max-w-[100px] sm:max-w-[120px]">{asset.name}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* CELDA PRECIO ACTUAL CON EDICIÓN MANUAL */}
+                            <td className="py-2 px-3 text-right font-extrabold text-blue-500 whitespace-nowrap">
+                              {isEditingPrice ? (
+                                <div className="flex items-center justify-end gap-1">
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={tempPriceValue}
+                                    onChange={(e) => setTempPriceValue(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveCurrentPrice(asset.id)}
+                                    autoFocus
+                                    className="bg-slate-100 dark:bg-slate-900 border border-blue-500 text-slate-800 dark:text-slate-100 rounded px-1.5 py-0.5 text-xs text-right w-20 focus:outline-none"
+                                  />
+                                  <button
+                                    onClick={() => handleSaveCurrentPrice(asset.id)}
+                                    className="text-emerald-500 hover:text-emerald-400 p-0.5"
+                                    title="Guardar precio"
+                                  >
+                                    <Icon name="check" className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingPriceAssetId(null)}
+                                    className="text-slate-400 hover:text-slate-200 p-0.5"
+                                    title="Cancelar"
+                                  >
+                                    <Icon name="x" className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1 group/price">
+                                  <span>{formatCurrency(asset.currentPrice)}</span>
+                                  {!isCash && (
+                                    <button
+                                      onClick={() => {
+                                        setEditingPriceAssetId(asset.id);
+                                        setTempPriceValue(asset.currentPrice);
+                                      }}
+                                      className="opacity-0 group-hover/price:opacity-100 text-slate-400 hover:text-blue-500 p-0.5 transition-opacity"
+                                      title="Editar precio actual manualmente"
+                                    >
+                                      <Icon name="pencil" className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="py-2 px-3 text-right font-semibold whitespace-nowrap">{asset.shares}</td>
+                            <td className="py-2 px-3 text-right text-slate-500 dark:text-slate-400 whitespace-nowrap">{isCash ? '-' : formatCurrency(asset.avgPrice)}</td>
+                            <td className="py-2 px-3 text-right font-bold whitespace-nowrap">{formatCurrency(totalVal)}</td>
+                            <td className="py-2 px-3 text-right font-semibold whitespace-nowrap">
+                              {isCash ? (
+                                <span className="text-slate-400 text-xs">Sin riesgo</span>
+                              ) : (
+                                <span className={profitAmount >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                                  {profitAmount >= 0 ? '+' : ''}{formatCurrency(profitAmount)}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-right font-semibold whitespace-nowrap">
+                              {isCash ? (
+                                <span className="text-slate-400 text-xs">Liquidez</span>
+                              ) : (
+                                <span className={profitPct >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
+                                  {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <button onClick={() => { setEditingAsset(asset); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-500 p-0.5" title="Comprar / Vender este activo">
+                                  <Icon name="arrow-left-right" className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => setAssets(assets.filter(a => a.id !== asset.id))} className="text-slate-400 hover:text-rose-500 p-0.5" title="Eliminar todo el activo">
+                                  <Icon name="trash-2" className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* HISTORIAL INDIVIDUAL DE COMPRAS Y VENTAS */}
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan="9" className="bg-slate-100/80 dark:bg-slate-900/80 p-3 border-y border-slate-200 dark:border-slate-700">
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                      <Icon name="history" className="w-3 h-3 text-blue-500" />
+                                      Historial de Operaciones ({asset.ticker})
+                                    </span>
+                                    <button 
+                                      onClick={() => { setEditingAsset(asset); setIsModalOpen(true); }}
+                                      className="text-xs font-semibold text-blue-500 hover:text-blue-400 flex items-center gap-1"
+                                    >
+                                      <Icon name="plus" className="w-3 h-3" />
+                                      <span>Registrar Nueva Operación</span>
+                                    </button>
+                                  </div>
+
+                                  {txList.length === 0 ? (
+                                    <p className="text-xs text-slate-400 italic text-center py-2">No hay operaciones registradas.</p>
+                                  ) : (
+                                    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-inner">
+                                      <table className="w-full text-left text-xs">
+                                        <thead>
+                                          <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-400">
+                                            <th className="p-2">Tipo</th>
+                                            <th className="p-2">Fecha</th>
+                                            <th className="p-2 text-right">Cantidad</th>
+                                            <th className="p-2 text-right">Precio Operación</th>
+                                            <th className="p-2 text-right">Monto Total ($)</th>
+                                            <th className="p-2 text-center">Acciones</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                                          {txList.map((tx) => {
+                                            const isEditingThisTx = editingTx && editingTx.txId === tx.id;
+                                            const partialCost = (parseFloat(tx.shares) || 0) * (parseFloat(tx.price) || 0);
+                                            const isSaleTx = tx.type === 'SELL';
+
+                                            return (
+                                              <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
+                                                <td className="p-2 font-bold">
+                                                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${isSaleTx ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                                                    {isSaleTx ? '🔴 VENTA' : '🟢 COMPRA'}
+                                                  </span>
+                                                </td>
+                                                <td className="p-2 font-mono text-slate-500 dark:text-slate-400">
+                                                  {isEditingThisTx ? (
+                                                    <input 
+                                                      type="date" 
+                                                      defaultValue={tx.date} 
+                                                      id={`edit-date-${tx.id}`}
+                                                      className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs"
+                                                    />
+                                                  ) : (
+                                                    tx.date || 'N/A'
+                                                  )}
+                                                </td>
+                                                <td className="p-2 text-right font-medium">
+                                                  {isEditingThisTx ? (
+                                                    <input 
+                                                      type="number" 
+                                                      step="any"
+                                                      defaultValue={tx.shares} 
+                                                      id={`edit-shares-${tx.id}`}
+                                                      className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs text-right w-20"
+                                                    />
+                                                  ) : (
+                                                    `${isSaleTx ? '-' : '+'}${tx.shares}`
+                                                  )}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                  {isEditingThisTx ? (
+                                                    <input 
+                                                      type="number" 
+                                                      step="any"
+                                                      defaultValue={tx.price} 
+                                                      id={`edit-price-${tx.id}`}
+                                                      className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs text-right w-24"
+                                                    />
+                                                  ) : (
+                                                    formatCurrency(tx.price)
+                                                  )}
+                                                </td>
+                                                <td className={`p-2 text-right font-semibold ${isSaleTx ? 'text-emerald-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                  {isSaleTx ? '+' : '-'}{formatCurrency(partialCost)}
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                  {isEditingThisTx ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                      <button 
+                                                        onClick={() => {
+                                                          const s = document.getElementById(`edit-shares-${tx.id}`).value;
+                                                          const p = document.getElementById(`edit-price-${tx.id}`).value;
+                                                          const d = document.getElementById(`edit-date-${tx.id}`).value;
+                                                          handleUpdateTransaction(asset.id, tx.id, s, p, d);
+                                                        }}
+                                                        className="text-emerald-500 hover:text-emerald-400 p-1"
+                                                        title="Guardar cambios"
+                                                      >
+                                                        <Icon name="check" className="w-3.5 h-3.5" />
+                                                      </button>
+                                                      <button 
+                                                        onClick={() => setEditingTx(null)}
+                                                        className="text-slate-400 hover:text-slate-200 p-1"
+                                                        title="Cancelar"
+                                                      >
+                                                        <Icon name="x" className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                      <button 
+                                                        onClick={() => setEditingTx({ assetId: asset.id, txId: tx.id })}
+                                                        className="text-slate-400 hover:text-blue-500 p-1"
+                                                        title="Editar esta operación"
+                                                      >
+                                                        <Icon name="edit-2" className="w-3.5 h-3.5" />
+                                                      </button>
+                                                      <button 
+                                                        onClick={() => handleDeleteTransaction(asset.id, tx.id)}
+                                                        className="text-slate-400 hover:text-rose-500 p-1"
+                                                        title="Eliminar esta operación"
+                                                      >
+                                                        <Icon name="trash-2" className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* PANEL 1: GRÁFICOS DE PASTEL */}
+          <div className={`fixed top-0 right-0 h-full w-[360px] sm:w-[420px] bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-30 transform transition-transform duration-300 overflow-y-auto p-4 sm:p-6 ${isChartDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Icon name="pie-chart" className="w-5 h-5 text-blue-500" />
+                Panel de Distribución
+              </h2>
+              <button onClick={() => setIsChartDrawerOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-blue-500/30">
+                <h3 className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-2">
+                  Distribución Total del Capital
+                </h3>
+                
+                <div className="h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={globalPieData} 
+                        cx="50%" 
+                        cy="50%" 
+                        innerRadius={35} 
+                        outerRadius={60} 
+                        paddingAngle={4} 
+                        dataKey="value"
+                      >
+                        {globalPieData.map((entry, index) => (
+                          <Cell key={`global-cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip content={<HighContrastPieTooltip totalValue={metrics.totalCurrentValue} isPrivate={isPrivateMode} />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/60">
+                  {globalPieData.map((item, idx) => (
+                    <div key={item.name} className="flex items-center gap-1.5 text-[11px]">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
+                      <span className="truncate text-slate-600 dark:text-slate-300">{item.name}:</span>
+                      <span className="font-bold">{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                  Desglose Interno por Categoría
+                </h3>
+
+                <div className="space-y-4">
+                  {categoryChartsData.map((catGroup) => (
+                    <div key={catGroup.categoryName} className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-emerald-500">{catGroup.categoryName}</span>
+                        <span className="text-xs font-black">{formatCurrency(catGroup.totalValue)}</span>
+                      </div>
+
+                      <div className="h-40">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie 
+                              data={catGroup.items} 
+                              cx="50%" 
+                              cy="50%" 
+                              innerRadius={30} 
+                              outerRadius={50} 
+                              paddingAngle={4} 
+                              dataKey="value"
+                            >
+                              {catGroup.items.map((entry, index) => (
+                                <Cell key={`cell-${catGroup.categoryName}-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip content={<HighContrastPieTooltip totalValue={catGroup.totalValue} isPrivate={isPrivateMode} />} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/60">
+                        {catGroup.items.map((item, idx) => {
+                          const pct = catGroup.totalValue > 0 ? ((item.value / catGroup.totalValue) * 100).toFixed(1) : 0;
+                          return (
+                            <div key={item.name} className="flex items-center gap-1 text-[11px]">
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
+                              <span className="font-bold text-slate-700 dark:text-slate-200">{item.name}:</span>
+                              <span className="text-slate-500 dark:text-slate-400">{pct}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PANEL 2: REGISTRO DE DIVIDENDOS */}
+          <div className={`fixed top-0 right-0 h-full w-[360px] sm:w-[420px] bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-30 transform transition-transform duration-300 overflow-y-auto p-4 sm:p-6 ${isDivDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Icon name="coins" className="w-5 h-5 text-amber-500" />
+                Ingresos por Dividendos
+              </h2>
+              <button onClick={() => setIsDivDrawerOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl mb-4 text-center">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">Total Cobros Acumulados</span>
+              <span className="text-2xl font-black text-amber-500">{formatCurrency(totalDividends)}</span>
+            </div>
+
+            <form onSubmit={handleAddDividend} className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 mb-4 space-y-3">
+              <h3 className="text-xs font-bold">Registrar Cobro de Dividendo</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Ticker / Activo" 
+                  value={divForm.ticker} 
+                  onChange={(e) => setDivForm({ ...divForm, ticker: e.target.value })}
+                  className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs uppercase"
+                  required
+                />
+                <input 
+                  type="number" 
+                  step="any" 
+                  placeholder="Monto ($)" 
+                  value={divForm.amount} 
+                  onChange={(e) => setDivForm({ ...divForm, amount: e.target.value })}
+                  className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs"
+                  required
+                />
+              </div>
+              <button type="submit" className="w-full bg-amber-600 hover:bg-amber-500 text-white py-1.5 rounded-lg text-xs font-semibold">
+                Agregar Dividendo
+              </button>
+            </form>
+
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-400">Historial de Cobros</h3>
+              {dividends.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">No hay dividendos registrados aún.</p>
+              ) : (
+                dividends.map((div) => (
+                  <div key={div.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+                    <div>
+                      <span className="font-bold text-blue-500">{div.ticker}</span>
+                      <span className="text-[10px] text-slate-400 block">{div.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-emerald-500">+{formatCurrency(div.amount)}</span>
+                      <button 
+                        onClick={() => handleDeleteDividend(div.id)}
+                        className="text-slate-400 hover:text-rose-500 p-1 rounded transition-colors"
+                        title="Eliminar dividendo"
+                      >
+                        <Icon name="trash-2" className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* PANEL 3: ALERTAS DE PRECIO */}
+          <div className={`fixed top-0 right-0 h-full w-[360px] sm:w-[420px] bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-30 transform transition-transform duration-300 overflow-y-auto p-4 sm:p-6 ${isPriceAlertDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Icon name="bell" className="w-5 h-5 text-purple-500" />
+                Alertas de Precio (Cualquier Activo)
+              </h2>
+              <button onClick={() => setIsPriceAlertDrawerOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAlertForm} className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 mb-4 space-y-3">
+              <h3 className="text-xs font-bold">Nueva Alerta Libre</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Ticker / Cripto (ej. NVDA, ETH, BGB)" 
+                  value={alertForm.ticker} 
+                  onChange={(e) => setAlertForm({ ...alertForm, ticker: e.target.value })}
+                  className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs uppercase"
+                  required
+                />
+                <input 
+                  type="number" 
+                  step="any" 
+                  placeholder="Precio Objetivo ($)" 
+                  value={alertForm.targetPrice} 
+                  onChange={(e) => setAlertForm({ ...alertForm, targetPrice: e.target.value })}
+                  className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-xs"
+                  required
+                />
+              </div>
+              <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white py-1.5 rounded-lg text-xs font-semibold">
+                Guardar Alerta
+              </button>
+            </form>
+
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold text-slate-400">Alertas Activas ({priceAlerts.length})</h3>
+              {priceAlerts.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">No hay alertas de precio registradas.</p>
+              ) : (
+                priceAlerts.map((alert) => {
+                  const isReached = alert.currentPrice && alert.currentPrice >= alert.targetPrice;
+                  return (
+                    <div key={alert.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-900/60 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+                      <div>
+                        <span className="font-bold text-blue-500">{alert.ticker}</span>
+                        {alert.currentPrice && (
+                          <span className="text-[10px] text-slate-400 block">Actual: ${alert.currentPrice}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold px-2 py-0.5 rounded ${isReached ? 'bg-emerald-500/20 text-emerald-500 animate-pulse' : 'bg-purple-500/20 text-purple-400'}`}>
+                          🎯 ${alert.targetPrice}
+                        </span>
+                        <button 
+                          onClick={() => handleRemovePriceAlert(alert.id)}
+                          className="text-slate-400 hover:text-rose-500 p-1 rounded transition-colors"
+                          title="Eliminar alerta"
+                        >
+                          <Icon name="trash-2" className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* PANEL 4: ALERTA DE CONCENTRACIÓN DE RIESGO */}
+          <div className={`fixed top-0 right-0 h-full w-[360px] sm:w-[420px] bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-30 transform transition-transform duration-300 overflow-y-auto p-4 sm:p-6 ${isRiskAlertDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-bold flex items-center gap-2 text-rose-500">
+                <Icon name="shield-alert" className="w-5 h-5 text-rose-500" />
+                Alerta de Concentración
+              </h2>
+              <button onClick={() => setIsRiskAlertDrawerOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+                <Icon name="x" className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+                  Configurar Límite Máximo (%)
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    step="any"
+                    min="1"
+                    max="100"
+                    value={concentrationThreshold}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setConcentrationThreshold(isNaN(val) ? 0 : val);
+                    }}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-blue-500 focus:outline-none focus:border-blue-500"
+                    placeholder="Escribe el porcentaje..."
+                  />
+                  <span className="absolute right-3 text-xs font-bold text-slate-400">%</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Escribe manualmente el porcentaje de concentración deseado para activar la alerta.</p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                <h3 className="text-xs font-bold mb-2">Diagnóstico de Riesgo</h3>
+                {maxConcentrationAsset ? (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-600 dark:text-rose-400">
+                    <p className="font-bold mb-1">¡Alerta Activa!</p>
+                    <p>El activo <strong>{maxConcentrationAsset.ticker}</strong> representa un <strong>{maxConcentrationAsset.pct}%</strong> de tu portafolio, superando tu límite configurado del {concentrationThreshold}%.</p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-emerald-600 dark:text-emerald-400">
+                    <p className="font-bold mb-1">Portafolio Diversificado</p>
+                    <p>Ningún activo individual supera el límite de concentración configurado ({concentrationThreshold}%).</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <AssetModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSaveAsset={handleSaveAsset}
+            initialData={editingAsset}
+          />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<InvestmentDashboard />);
+  </script>
+</body>
+</html>

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suite Financiera - Control Total & PDF Dinámico</title>
+  <title>Suite Financiera - Activos Fijos & PDF Dinámico</title>
 
-  <!-- FAVICON FINANCIERO DE PESTAÑA -->
+  <!-- FAVICON FINANCIERO -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23eab308'><path d='M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 13v1a2 2 0 0 0 2 2h2v3.93zm5.9-3.23A7.95 7.95 0 0 1 13 18v-3a1 1 0 0 0-1-1H9v-2h4a1 1 0 0 0 1-1V8.1a7.93 7.93 0 0 1 4.9 8.6z'/></svg>">
 
   <!-- Tailwind CSS -->
@@ -48,7 +48,7 @@
           <div class="flex items-center gap-2">
             <h1 class="text-2xl sm:text-3xl font-black text-white">Suite Financiera Integral</h1>
             <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Generador PDF Activo
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Columnas Fijas (Sticky)
             </span>
           </div>
           <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
@@ -83,7 +83,6 @@
           <span>Excel</span>
         </button>
 
-        <!-- BOTÓN GENERAR REPORTE PDF DINÁMICO -->
         <button onclick="exportPDFGlobal()" class="flex items-center gap-1 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs px-3 py-2 rounded-xl shadow transition">
           <i data-lucide="file-text" class="w-4 h-4"></i>
           <span>Generar PDF</span>
@@ -188,11 +187,11 @@
           </button>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto relative">
           <table class="w-full text-left border-collapse text-xs">
             <thead class="bg-slate-900 border-b border-slate-700 text-slate-400">
               <tr>
-                <th class="py-2.5 px-3">Institución Bancaria</th>
+                <th class="py-2.5 px-3 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">Institución Bancaria</th>
                 <th class="py-2.5 px-3">Tipo de Cuenta</th>
                 <th class="py-2.5 px-3 text-right">Saldo Disponible ($)</th>
                 <th class="py-2.5 px-3 text-center">Acción</th>
@@ -283,11 +282,11 @@
             </div>
           </div>
 
-          <div class="overflow-x-auto max-h-80 border border-slate-700/60 rounded-xl">
+          <div class="overflow-x-auto max-h-80 border border-slate-700/60 rounded-xl relative">
             <table class="w-full text-left border-collapse text-xs">
-              <thead class="sticky top-0 bg-slate-900 border-b border-slate-700 text-slate-400">
+              <thead class="sticky top-0 bg-slate-900 border-b border-slate-700 text-slate-400 z-20">
                 <tr>
-                  <th class="py-2.5 px-3">Banco</th>
+                  <th class="py-2.5 px-3 sticky left-0 bg-slate-900 z-30 border-r border-slate-800">Banco</th>
                   <th class="py-2.5 px-3">Fecha</th>
                   <th class="py-2.5 px-3">Concepto</th>
                   <th class="py-2.5 px-3">Categoría</th>
@@ -377,9 +376,9 @@
           <div>
             <h3 class="text-base font-bold flex items-center gap-2">
               <i data-lucide="edit-3" class="w-5 h-5 text-indigo-400"></i>
-              <span>Gestión de Inversiones (Precios Auto & Control Manual)</span>
+              <span>Gestión de Inversiones (Columna Ticker Congelada)</span>
             </h3>
-            <p class="text-xs text-slate-400">Desmarca "Auto-Actualizar" si deseas fijar manualmente el precio de un activo.</p>
+            <p class="text-xs text-slate-400">La primera columna de activo se mantendrá siempre fija al hacer scroll lateral.</p>
           </div>
 
           <div class="flex items-center gap-2">
@@ -397,11 +396,11 @@
           </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto relative">
           <table class="w-full text-left border-collapse text-xs">
             <thead class="bg-slate-900 border-b border-slate-700 text-slate-400">
               <tr>
-                <th class="py-3 px-3">Ticker</th>
+                <th class="py-3 px-3 sticky left-0 bg-slate-900 z-20 border-r border-slate-800 shadow-md">Ticker / Activo</th>
                 <th class="py-3 px-3">Tipo</th>
                 <th class="py-3 px-3 text-center">Auto-Actualizar</th>
                 <th class="py-3 px-3 text-right">Cantidad</th>
@@ -414,7 +413,7 @@
               </tr>
             </thead>
             <tbody id="portfolioTableBody" class="divide-y divide-slate-700/50 font-mono">
-              <!-- Filas dinámicas -->
+              <!-- Filas dinámicas con la primera columna STICKY -->
             </tbody>
           </table>
         </div>
@@ -562,10 +561,10 @@
       const dateToday = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
 
       // HEADER DEL DOCUMENTO
-      doc.setFillColor(15, 23, 42); // slate-900
+      doc.setFillColor(15, 23, 42);
       doc.rect(0, 0, 210, 32, 'F');
 
-      doc.setTextColor(234, 179, 8); // yellow-500
+      doc.setTextColor(234, 179, 8);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
       doc.text("INFORME EJECUTIVO FINANCIERO", 14, 15);
@@ -897,7 +896,7 @@
         tr.className = 'hover:bg-slate-700/30 border-b border-slate-800/60';
 
         tr.innerHTML = `
-          <td class="py-2.5 px-3">
+          <td class="py-2.5 px-3 sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
             <input type="text" value="${acc.banco}" onchange="globalState.bancosAccounts[${index}].banco=this.value; populateBancoFilters(); updateCalculatedTotals();" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 font-bold text-slate-200 focus:outline-none w-44">
           </td>
           <td class="py-2.5 px-3">
@@ -1004,7 +1003,7 @@
       filtered.forEach((t, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="py-2 px-3 font-bold text-slate-300">${t.banco}</td>
+          <td class="py-2 px-3 sticky left-0 bg-slate-900 z-10 border-r border-slate-800 font-bold text-slate-300">${t.banco}</td>
           <td class="py-2 px-3 text-slate-400 text-[11px]">${t.fecha}</td>
           <td class="py-2 px-3 font-semibold text-slate-200">${t.concepto}</td>
           <td class="py-2 px-3">
@@ -1173,7 +1172,7 @@
       alert(`Transacción ${esInteres ? 'de Interés' : ''} registrada correctamente en ${banco}.`);
     }
 
-    // PORTAFOLIO EDITABLE CON OPCIÓN DE DESACTIVAR AUTO-ACTUALIZAR
+    // PORTAFOLIO EDITABLE CON PRIMERA COLUMNA CONGELADA (STICKY LEFT-0)
     function renderPortfolioTable() {
       const filter = document.getElementById('portfolioTypeFilter').value;
       const tbody = document.getElementById('portfolioTableBody');
@@ -1187,7 +1186,8 @@
         const tr = document.createElement('tr');
         tr.id = `portfolioRow_${index}`;
         tr.innerHTML = `
-          <td class="py-2.5 px-3">
+          <!-- COLUMNA CONGELADA A LA IZQUIERDA -->
+          <td class="py-2.5 px-3 sticky left-0 bg-slate-900 z-10 border-r border-slate-800 shadow-md">
             <input type="text" value="${item.ticker}" onchange="globalState.portfolio[${index}].ticker=this.value; saveState();" class="bg-slate-900 border border-slate-700/80 rounded px-2 py-1 font-bold text-slate-200 w-24 focus:outline-none focus:border-yellow-500">
           </td>
           <td class="py-2.5 px-3">
